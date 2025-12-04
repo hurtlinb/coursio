@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const mysql = require('mysql2/promise');
 
@@ -15,12 +16,38 @@ const supportedFormats = new Set([
 ]);
 const slotToPeriod = ['matin', 'apres_midi'];
 
+function loadDbConfig() {
+  const configPath = process.env.DB_CONFIG_PATH || path.join(__dirname, 'db.config.json');
+
+  try {
+    const fileContent = fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(fileContent);
+
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      console.warn(`Impossible de lire le fichier de configuration MariaDB (${configPath}) : ${error.message}`);
+    }
+  }
+
+  return {};
+}
+
+function toNumber(value, fallback) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
+const dbConfig = loadDbConfig();
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'coursio',
-  port: Number(process.env.DB_PORT || 3306),
+  host: dbConfig.host || process.env.DB_HOST || '127.0.0.1',
+  user: dbConfig.user || process.env.DB_USER || 'root',
+  password: dbConfig.password || process.env.DB_PASSWORD || '',
+  database: dbConfig.database || process.env.DB_NAME || 'coursio',
+  port: toNumber(dbConfig.port ?? process.env.DB_PORT, 3306),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
