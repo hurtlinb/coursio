@@ -13,7 +13,7 @@
     <div class="hero__content">
       <div class="badge">Nouveau • Plateforme de cours intelligente</div>
       <h1>Apprenez plus vite avec <span class="highlight">Coursio</span></h1>
-      <p class="subtitle">Une page d'accueil accueillante pour présenter vos formations, vos parcours et votre communauté. Pensée pour vous mettre en scène avec élégance.</p>
+      <p class="subtitle">Configurez vos cours en quelques clics et organisez vos activités dans un planning clair, pensé pour vos apprenants.</p>
       <div class="cta">
         <a class="btn btn-primary" href="#explorer">Découvrir</a>
         <a class="btn btn-secondary" href="#demo">Voir la démo</a>
@@ -31,19 +31,6 @@
           <span class="stat">24/7</span>
           <p>assistance apprenants</p>
         </div>
-      </div>
-    </div>
-    <div class="hero__panel" id="demo">
-      <div class="panel__header">Progression hebdomadaire</div>
-      <div class="panel__chart">
-        <div class="bar" style="height: 70%"></div>
-        <div class="bar" style="height: 90%"></div>
-        <div class="bar" style="height: 55%"></div>
-        <div class="bar" style="height: 80%"></div>
-        <div class="bar" style="height: 65%"></div>
-      </div>
-      <div class="panel__footer">
-        <span>Vos progrès montent en flèche 🚀</span>
       </div>
     </div>
   </header>
@@ -71,6 +58,81 @@
       </div>
     </section>
 
+    <section class="section planner" id="demo">
+      <div class="planner__intro">
+        <div class="section__title">Planifiez vos activités</div>
+        <p class="section__subtitle">Par défaut, chaque cours est structuré en 5 semaines de 3 demi-jours. Utilisez le formulaire pour ajouter vos activités et visualiser immédiatement leur placement.</p>
+        <div class="pill-list">
+          <span class="pill">5 semaines</span>
+          <span class="pill">3 demi-jours / semaine</span>
+          <span class="pill">Activités illimitées</span>
+        </div>
+      </div>
+
+      <div class="planner__grid">
+        <form class="activity-form" id="activity-form">
+          <h3>Nouvelle activité</h3>
+          <label class="form-field">
+            <span>Nom de l'activité</span>
+            <input type="text" id="activity-name" placeholder="Ex : Atelier de prototypage" required>
+          </label>
+
+          <div class="form-row">
+            <label class="form-field">
+              <span>Semaine</span>
+              <select id="week-select">
+                <option value="1">Semaine 1</option>
+                <option value="2">Semaine 2</option>
+                <option value="3">Semaine 3</option>
+                <option value="4">Semaine 4</option>
+                <option value="5">Semaine 5</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Demi-jour</span>
+              <select id="slot-select">
+                <option value="0">Matin</option>
+                <option value="1">Après-midi</option>
+                <option value="2">Soirée</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span>Format</span>
+            <select id="type-select">
+              <option value="Atelier">Atelier</option>
+              <option value="Cours">Cours</option>
+              <option value="Coaching">Coaching</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span>Détails (facultatif)</span>
+            <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
+          </label>
+
+          <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
+        </form>
+
+        <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
+          <div class="timeline__header">
+            <div>
+              <p class="label">Planning</p>
+              <h3>5 semaines, 3 demi-jours</h3>
+              <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
+            </div>
+            <div class="legend">
+              <span class="legend__item"><span class="dot dot--empty"></span>Libre</span>
+              <span class="legend__item"><span class="dot dot--filled"></span>Planifié</span>
+            </div>
+          </div>
+          <div class="timeline__grid" id="timeline"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="section section--cta">
       <div>
         <div class="section__title">Prêt à lancer votre première vitrine ?</div>
@@ -83,5 +145,75 @@
   <footer class="footer">
     <p>Créé pour vous par l'équipe Coursio.</p>
   </footer>
+
+  <script>
+    const weeks = 5;
+    const slotLabels = ['Matin', 'Après-midi', 'Soirée'];
+    const schedule = Array.from({ length: weeks }, (_, index) => ({
+      week: index + 1,
+      slots: slotLabels.map(label => ({ label, activities: [] }))
+    }));
+
+    const timeline = document.getElementById('timeline');
+    const form = document.getElementById('activity-form');
+
+    function renderSchedule() {
+      timeline.innerHTML = schedule.map(week => {
+        const slots = week.slots.map(slot => {
+          const hasActivities = slot.activities.length > 0;
+          const items = hasActivities
+            ? slot.activities.map(activity => `
+                <div class="activity">
+                  <div class="activity__header">
+                    <span class="activity__title">${activity.name}</span>
+                    <span class="activity__type">${activity.type}</span>
+                  </div>
+                  ${activity.details ? `<p class="activity__details">${activity.details}</p>` : ''}
+                </div>
+              `).join('')
+            : '<p class="empty">Aucune activité planifiée</p>';
+
+          return `
+            <div class="slot ${hasActivities ? 'slot--filled' : ''}">
+              <div class="slot__label">${slot.label}</div>
+              <div class="slot__content">${items}</div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <article class="week-card">
+            <header>
+              <p class="label">Semaine ${week.week}</p>
+              <p class="muted">3 demi-jours prêts à accueillir vos activités</p>
+            </header>
+            <div class="slots">${slots}</div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const name = document.getElementById('activity-name').value.trim();
+      const weekIndex = Number(document.getElementById('week-select').value) - 1;
+      const slotIndex = Number(document.getElementById('slot-select').value);
+      const type = document.getElementById('type-select').value;
+      const details = document.getElementById('details').value.trim();
+
+      if (!name) return;
+
+      const targetSlot = schedule[weekIndex].slots[slotIndex];
+      targetSlot.activities.push({ name, type, details });
+
+      renderSchedule();
+      form.reset();
+      document.getElementById('week-select').value = weekIndex + 1;
+      document.getElementById('slot-select').value = slotIndex;
+    });
+
+    renderSchedule();
+  </script>
 </body>
 </html>
