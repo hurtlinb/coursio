@@ -237,13 +237,35 @@
       activityEl.dataset.week = weekIndex;
       activityEl.dataset.slot = slotIndex;
       activityEl.dataset.index = activityIndex;
-      activityEl.innerHTML = `
-        <div class="activity__header">
-          <span class="activity__title">${activity.name}</span>
-          <span class="activity__type">${activity.type}</span>
-        </div>
-        ${activity.details ? `<p class="activity__details">${activity.details}</p>` : ''}
-      `;
+
+      const header = document.createElement('div');
+      header.className = 'activity__header';
+
+      const title = document.createElement('span');
+      title.className = 'activity__title';
+      title.textContent = activity.name;
+
+      const type = document.createElement('span');
+      type.className = 'activity__type';
+      type.textContent = supportedFormats[activity.type] || activity.type;
+
+      header.appendChild(title);
+      header.appendChild(type);
+
+      activityEl.appendChild(header);
+
+      const detailsText = `${activity.duration} min • ${activity.details || 'Description à compléter'}`;
+      const details = document.createElement('p');
+      details.className = 'activity__details';
+      details.textContent = detailsText;
+      activityEl.appendChild(details);
+
+      if (activity.materials) {
+        const materials = document.createElement('p');
+        materials.className = 'activity__details';
+        materials.textContent = `Matériel : ${activity.materials}`;
+        activityEl.appendChild(materials);
+      }
 
       activityEl.addEventListener('dragstart', handleDragStart);
       activityEl.addEventListener('dragend', handleDragEnd);
@@ -276,39 +298,24 @@
     }
 
     function renderSchedule() {
-      timeline.innerHTML = schedule.map(week => {
-        const slots = week.slots.map(slot => {
-          const hasActivities = slot.activities.length > 0;
-          const items = hasActivities
-            ? slot.activities.map(activity => `
-                <div class="activity">
-                  <div class="activity__header">
-                    <span class="activity__title">${activity.name}</span>
-                    <span class="activity__type">${supportedFormats[activity.type]}</span>
-                  </div>
-                  <p class="activity__details">${activity.duration} min • ${activity.details || 'Description à compléter'}</p>
-                  ${activity.materials ? `<p class="activity__details">Matériel : ${activity.materials}</p>` : ''}
-                </div>
-              `).join('')
-            : '<p class="empty">Aucune activité planifiée</p>';
+      timeline.innerHTML = '';
 
-          return `
-            <div class="slot ${hasActivities ? 'slot--filled' : ''}">
-              <div class="slot__label">${slot.label}</div>
-              <div class="slot__content">${items}</div>
-            </div>
-          `;
-        }).join('');
+      schedule.forEach((week, weekIndex) => {
+        const weekCard = document.createElement('article');
+        weekCard.className = 'week-card';
 
-        return `
-          <article class="week-card">
-            <header>
-              <p class="label">Semaine ${week.week}</p>
-              <p class="muted">2 demi-jours prêts à accueillir vos activités</p>
-            </header>
-            <div class="slots">${slots}</div>
-          </article>
-        `;
+        const header = document.createElement('header');
+
+        const weekLabel = document.createElement('p');
+        weekLabel.className = 'label';
+        weekLabel.textContent = `Semaine ${week.week}`;
+
+        const weekDescription = document.createElement('p');
+        weekDescription.className = 'muted';
+        weekDescription.textContent = '2 demi-jours prêts à accueillir vos activités';
+
+        header.appendChild(weekLabel);
+        header.appendChild(weekDescription);
 
         const slotsContainer = document.createElement('div');
         slotsContainer.className = 'slots';
