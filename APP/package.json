@@ -1,0 +1,12 @@
+{
+  "name": "coursio-app",
+  "version": "1.0.0",
+  "description": "Landing page server for the coursio project",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
