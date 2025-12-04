@@ -42,12 +42,16 @@ function toNumber(value, fallback) {
 
 const dbConfig = loadDbConfig();
 
-const pool = mysql.createPool({
+const effectiveDbConfig = {
   host: dbConfig.host || process.env.DB_HOST || '127.0.0.1',
   user: dbConfig.user || process.env.DB_USER || 'root',
   password: dbConfig.password || process.env.DB_PASSWORD || '',
   database: dbConfig.database || process.env.DB_NAME || 'coursio',
-  port: toNumber(dbConfig.port ?? process.env.DB_PORT, 3306),
+  port: toNumber(dbConfig.port ?? process.env.DB_PORT, 3306)
+};
+
+const pool = mysql.createPool({
+  ...effectiveDbConfig,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0

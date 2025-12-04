@@ -2,7 +2,7 @@
 
 ## Configuration MariaDB
 
-Les paramètres de connexion à MariaDB sont lus depuis un fichier de configuration JSON qui ne doit **pas** être commité.
+Les paramètres de connexion à MariaDB sont lus depuis un fichier de configuration JSON qui ne doit **pas** être commité. L’application utilise ce fichier au démarrage pour initialiser le pool de connexions MariaDB.
 
 1. Créez un fichier `APP/db.config.json` (ou passez un autre chemin via la variable d’environnement `DB_CONFIG_PATH`).
 2. Ajoutez-y les champs suivants :
