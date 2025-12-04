@@ -179,7 +179,116 @@
 
     const timeline = document.getElementById('timeline');
     const form = document.getElementById('activity-form');
-    const status = document.getElementById('status');
+    let draggedActivity = null;
+    let dropHandled = false;
+
+    function handleDragStart(event) {
+      const { week, slot, index } = event.currentTarget.dataset;
+      draggedActivity = {
+        week: Number(week),
+        slot: Number(slot),
+        index: Number(index)
+      };
+      dropHandled = false;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', '');
+      event.currentTarget.classList.add('is-dragging');
+    }
+
+    function handleDragEnd(event) {
+      event.currentTarget.classList.remove('is-dragging');
+
+      if (draggedActivity && !dropHandled) {
+        const shouldDelete = window.confirm("Voulez-vous supprimer cette activité ?");
+        if (shouldDelete) {
+          const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
+          sourceSlot.activities.splice(draggedActivity.index, 1);
+          renderSchedule();
+        }
+      }
+
+      draggedActivity = null;
+      dropHandled = false;
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDragEnter(event) {
+      event.currentTarget.classList.add('slot__content--over');
+    }
+
+    function handleDragLeave(event) {
+      event.currentTarget.classList.remove('slot__content--over');
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+      event.currentTarget.classList.remove('slot__content--over');
+
+      if (!draggedActivity) return;
+
+      dropHandled = true;
+
+      const targetWeek = Number(event.currentTarget.dataset.week);
+      const targetSlot = Number(event.currentTarget.dataset.slot);
+
+      if (draggedActivity.week === targetWeek && draggedActivity.slot === targetSlot) return;
+
+      const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
+      const [activity] = sourceSlot.activities.splice(draggedActivity.index, 1);
+      schedule[targetWeek].slots[targetSlot].activities.push(activity);
+
+      draggedActivity = null;
+      renderSchedule();
+    }
+
+    function createActivityElement(activity, weekIndex, slotIndex, activityIndex) {
+      const activityEl = document.createElement('div');
+      activityEl.className = 'activity';
+      activityEl.draggable = true;
+      activityEl.dataset.week = weekIndex;
+      activityEl.dataset.slot = slotIndex;
+      activityEl.dataset.index = activityIndex;
+      activityEl.innerHTML = `
+        <div class="activity__header">
+          <span class="activity__title">${activity.name}</span>
+          <span class="activity__type">${activity.type}</span>
+        </div>
+        ${activity.details ? `<p class="activity__details">${activity.details}</p>` : ''}
+      `;
+
+      activityEl.addEventListener('dragstart', handleDragStart);
+      activityEl.addEventListener('dragend', handleDragEnd);
+
+      return activityEl;
+    }
+
+    function createSlotContent(weekIndex, slotIndex, slot) {
+      const slotContent = document.createElement('div');
+      slotContent.className = 'slot__content';
+      slotContent.dataset.week = weekIndex;
+      slotContent.dataset.slot = slotIndex;
+      slotContent.addEventListener('dragover', handleDragOver);
+      slotContent.addEventListener('dragenter', handleDragEnter);
+      slotContent.addEventListener('dragleave', handleDragLeave);
+      slotContent.addEventListener('drop', handleDrop);
+
+      if (slot.activities.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = 'Aucune activité planifiée';
+        slotContent.appendChild(empty);
+      } else {
+        slot.activities.forEach((activity, activityIndex) => {
+          slotContent.appendChild(createActivityElement(activity, weekIndex, slotIndex, activityIndex));
+        });
+      }
+
+      return slotContent;
+    }
 
     function renderSchedule() {
       timeline.innerHTML = schedule.map(week => {
