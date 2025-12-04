@@ -215,7 +215,29 @@
             <div class="slots">${slots}</div>
           </article>
         `;
-      }).join('');
+
+        const slotsContainer = document.createElement('div');
+        slotsContainer.className = 'slots';
+
+        week.slots.forEach((slot, slotIndex) => {
+          const slotWrapper = document.createElement('div');
+          const hasActivities = slot.activities.length > 0;
+
+          slotWrapper.className = `slot ${hasActivities ? 'slot--filled' : ''}`;
+
+          const slotLabel = document.createElement('div');
+          slotLabel.className = 'slot__label';
+          slotLabel.textContent = slot.label;
+
+          slotWrapper.appendChild(slotLabel);
+          slotWrapper.appendChild(createSlotContent(weekIndex, slotIndex, slot));
+          slotsContainer.appendChild(slotWrapper);
+        });
+
+        weekCard.appendChild(header);
+        weekCard.appendChild(slotsContainer);
+        timeline.appendChild(weekCard);
+      });
     }
 
     async function persistActivity(payload) {
