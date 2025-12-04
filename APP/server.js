@@ -114,6 +114,19 @@ async function getHalfDayId(courseId, sessionDate, period) {
   return result.insertId;
 }
 
+app.get('/api/status', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ database: true });
+  } catch (error) {
+    console.error('Database connection check failed:', error.message);
+    res.status(503).json({
+      database: false,
+      error: 'Impossible de se connecter à la base de données.'
+    });
+  }
+});
+
 app.post('/api/activities', async (req, res) => {
   try {
     const { name, week, slot, format, details, duration, materials } = req.body;
