@@ -329,6 +329,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 48px;
 }
 
 .activity {
@@ -339,6 +340,15 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  cursor: grab;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.activity.is-dragging {
+  opacity: 0.8;
+  transform: scale(0.99);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  cursor: grabbing;
 }
 
 .activity__header {
@@ -367,6 +377,13 @@ h1 {
 .empty {
   color: var(--muted);
   font-style: italic;
+}
+
+.slot__content--over {
+  border: 1px dashed rgba(34, 211, 238, 0.6);
+  border-radius: 10px;
+  padding: 6px;
+  background: rgba(34, 211, 238, 0.06);
 }
 
 .legend {
