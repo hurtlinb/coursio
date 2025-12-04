@@ -61,10 +61,10 @@
     <section class="section planner" id="demo">
       <div class="planner__intro">
         <div class="section__title">Planifiez vos activités</div>
-        <p class="section__subtitle">Par défaut, chaque cours est structuré en 5 semaines de 3 demi-jours. Utilisez le formulaire pour ajouter vos activités et visualiser immédiatement leur placement.</p>
+        <p class="section__subtitle">Par défaut, chaque cours est structuré en 5 semaines de 2 demi-jours. Utilisez le formulaire pour ajouter vos activités et visualiser immédiatement leur placement.</p>
         <div class="pill-list">
           <span class="pill">5 semaines</span>
-          <span class="pill">3 demi-jours / semaine</span>
+          <span class="pill">2 demi-jours / semaine</span>
           <span class="pill">Activités illimitées</span>
         </div>
       </div>
@@ -78,49 +78,62 @@
           </label>
 
           <div class="form-row">
-            <label class="form-field">
-              <span>Semaine</span>
-              <select id="week-select">
-                <option value="1">Semaine 1</option>
-                <option value="2">Semaine 2</option>
-                <option value="3">Semaine 3</option>
-                <option value="4">Semaine 4</option>
-                <option value="5">Semaine 5</option>
-              </select>
-            </label>
-            <label class="form-field">
-              <span>Demi-jour</span>
-              <select id="slot-select">
-                <option value="0">Matin</option>
-                <option value="1">Après-midi</option>
-                <option value="2">Soirée</option>
-              </select>
-            </label>
-          </div>
-
           <label class="form-field">
-            <span>Format</span>
-            <select id="type-select">
-              <option value="Atelier">Atelier</option>
-              <option value="Cours">Cours</option>
-              <option value="Coaching">Coaching</option>
-              <option value="Autre">Autre</option>
+            <span>Semaine (1 à 5)</span>
+            <select id="week-select">
+              <option value="1">Semaine 1</option>
+              <option value="2">Semaine 2</option>
+              <option value="3">Semaine 3</option>
+              <option value="4">Semaine 4</option>
+              <option value="5">Semaine 5</option>
             </select>
           </label>
-
           <label class="form-field">
-            <span>Détails (facultatif)</span>
-            <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
+            <span>Demi-jour</span>
+            <select id="slot-select">
+              <option value="0">Matin</option>
+              <option value="1">Après-midi</option>
+            </select>
           </label>
+        </div>
 
-          <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
-        </form>
+        <label class="form-field">
+          <span>Format</span>
+          <select id="type-select">
+            <option value="presentation">Présentation</option>
+            <option value="exercice">Exercice</option>
+            <option value="travail_de_groupe">Travail de groupe</option>
+            <option value="jeu">Jeu</option>
+            <option value="recherche_information">Recherche d'information</option>
+            <option value="synthese">Synthèse</option>
+            <option value="evaluation">Évaluation</option>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Durée (minutes)</span>
+          <input type="number" id="duration" min="1" max="480" value="60" required>
+        </label>
+
+        <label class="form-field">
+          <span>Détails (facultatif)</span>
+          <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
+        </label>
+
+        <label class="form-field">
+          <span>Matériel (facultatif)</span>
+          <textarea id="materials" rows="2" placeholder="Listez les ressources utiles"></textarea>
+        </label>
+
+        <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
+        <p class="muted" id="status" aria-live="polite"></p>
+      </form>
 
         <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
           <div class="timeline__header">
             <div>
               <p class="label">Planning</p>
-              <h3>5 semaines, 3 demi-jours</h3>
+              <h3>5 semaines, 2 demi-jours</h3>
               <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
             </div>
             <div class="legend">
@@ -148,7 +161,17 @@
 
   <script>
     const weeks = 5;
-    const slotLabels = ['Matin', 'Après-midi', 'Soirée'];
+    const slotLabels = ['Matin', 'Après-midi'];
+    const supportedFormats = {
+      presentation: 'Présentation',
+      exercice: 'Exercice',
+      travail_de_groupe: 'Travail de groupe',
+      jeu: 'Jeu',
+      recherche_information: "Recherche d'information",
+      synthese: 'Synthèse',
+      evaluation: 'Évaluation'
+    };
+
     const schedule = Array.from({ length: weeks }, (_, index) => ({
       week: index + 1,
       slots: slotLabels.map(label => ({ label, activities: [] }))
@@ -268,16 +291,38 @@
     }
 
     function renderSchedule() {
-      timeline.innerHTML = '';
+      timeline.innerHTML = schedule.map(week => {
+        const slots = week.slots.map(slot => {
+          const hasActivities = slot.activities.length > 0;
+          const items = hasActivities
+            ? slot.activities.map(activity => `
+                <div class="activity">
+                  <div class="activity__header">
+                    <span class="activity__title">${activity.name}</span>
+                    <span class="activity__type">${supportedFormats[activity.type]}</span>
+                  </div>
+                  <p class="activity__details">${activity.duration} min • ${activity.details || 'Description à compléter'}</p>
+                  ${activity.materials ? `<p class="activity__details">Matériel : ${activity.materials}</p>` : ''}
+                </div>
+              `).join('')
+            : '<p class="empty">Aucune activité planifiée</p>';
 
-      schedule.forEach((week, weekIndex) => {
-        const weekCard = document.createElement('article');
-        weekCard.className = 'week-card';
+          return `
+            <div class="slot ${hasActivities ? 'slot--filled' : ''}">
+              <div class="slot__label">${slot.label}</div>
+              <div class="slot__content">${items}</div>
+            </div>
+          `;
+        }).join('');
 
-        const header = document.createElement('header');
-        header.innerHTML = `
-          <p class="label">Semaine ${week.week}</p>
-          <p class="muted">3 demi-jours prêts à accueillir vos activités</p>
+        return `
+          <article class="week-card">
+            <header>
+              <p class="label">Semaine ${week.week}</p>
+              <p class="muted">2 demi-jours prêts à accueillir vos activités</p>
+            </header>
+            <div class="slots">${slots}</div>
+          </article>
         `;
 
         const slotsContainer = document.createElement('div');
@@ -304,6 +349,25 @@
       });
     }
 
+    async function persistActivity(payload) {
+      try {
+        const response = await fetch('/api/activities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Sauvegarde impossible');
+        }
+
+        status.textContent = 'Activité enregistrée dans la base MariaDB.';
+      } catch (error) {
+        status.textContent = `⚠️ ${error.message}`;
+      }
+    }
+
     form.addEventListener('submit', (event) => {
       event.preventDefault();
 
@@ -311,15 +375,30 @@
       const weekIndex = Number(document.getElementById('week-select').value) - 1;
       const slotIndex = Number(document.getElementById('slot-select').value);
       const type = document.getElementById('type-select').value;
+      const duration = Number(document.getElementById('duration').value) || 0;
       const details = document.getElementById('details').value.trim();
+      const materials = document.getElementById('materials').value.trim();
 
-      if (!name) return;
+      if (!name || duration <= 0) return;
 
       const targetSlot = schedule[weekIndex].slots[slotIndex];
-      targetSlot.activities.push({ name, type, details });
+      const activity = { name, type, details, duration, materials };
+      targetSlot.activities.push(activity);
+
+      status.textContent = 'Enregistrement de l’activité en cours...';
+      persistActivity({
+        name,
+        week: weekIndex + 1,
+        slot: slotIndex,
+        format: type,
+        details,
+        duration,
+        materials
+      });
 
       renderSchedule();
       form.reset();
+      document.getElementById('duration').value = 60;
       document.getElementById('week-select').value = weekIndex + 1;
       document.getElementById('slot-select').value = slotIndex;
     });
