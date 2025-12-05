@@ -259,8 +259,6 @@
     const formatSelector = document.getElementById('format-selector');
     const formatInput = document.getElementById('type-select');
     const closeActivityModalBtn = document.getElementById('close-activity-modal');
-    const activityModalTitle = document.getElementById('activity-modal-title');
-    const activitySubmitBtn = activityForm.querySelector('.btn-primary');
     const courseForm = document.getElementById('course-form');
     const courseModal = document.getElementById('course-modal');
     const courseSelect = document.getElementById('course-select');
@@ -278,51 +276,49 @@
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
-    let editingActivity = null;
 
-      function setActivityModalToCreation() {
-        editingActivity = null;
-        activityForm.reset();
-        document.getElementById('duration').value = 60;
-        weekSelect.value = 1;
-        refreshSlotSelectOptions();
-        slotSelect.value = 0;
-        activityModalTitle.textContent = 'Nouvelle activité';
-        activitySubmitBtn.textContent = "Ajouter l'activité";
-      }
+    function selectFormat(format) {
+      if (!formatSelector) return;
 
-      function openActivityModal() {
-        setActivityModalToCreation();
-        activityStatus.textContent = '';
-        activityModal.removeAttribute('hidden');
-        activityModal.classList.remove('is-hidden');
-        document.getElementById('activity-name').focus();
-      }
+      formatInput.value = format;
+      formatSelector.querySelectorAll('.format-chip').forEach((button) => {
+        const isSelected = button.dataset.format === format;
+        button.classList.toggle('is-selected', isSelected);
+        button.setAttribute('aria-pressed', String(isSelected));
+      });
+    }
 
-      function openActivityEditModal(activity, weekIndex, slotIndex) {
-        editingActivity = { id: activity.id, weekIndex, slotIndex };
-        activityForm.reset();
-        activityModalTitle.textContent = "Modifier l'activité";
-        activitySubmitBtn.textContent = "Mettre à jour l’activité";
-        document.getElementById('activity-name').value = activity.name;
-        weekSelect.value = weekIndex + 1;
-        refreshSlotSelectOptions();
-        slotSelect.value = slotIndex;
-        document.getElementById('type-select').value = activity.type;
-        document.getElementById('duration').value = activity.duration;
-        document.getElementById('details').value = activity.details || '';
-        document.getElementById('materials').value = activity.materials || '';
-        activityStatus.textContent = '';
-        activityModal.removeAttribute('hidden');
-        activityModal.classList.remove('is-hidden');
-        document.getElementById('activity-name').focus();
-      }
+    function initializeFormatSelector() {
+      if (!formatSelector) return;
 
-      function closeActivityModal() {
-        activityModal.setAttribute('hidden', '');
-        activityModal.classList.add('is-hidden');
-        setActivityModalToCreation();
-      }
+      formatSelector.querySelectorAll('.format-chip').forEach((button) => {
+        button.addEventListener('click', () => selectFormat(button.dataset.format));
+      });
+
+      selectFormat(formatInput.value || Object.keys(supportedFormats)[0]);
+    }
+
+    function resetActivityFormDefaults() {
+      activityForm.reset();
+      document.getElementById('duration').value = 60;
+      weekSelect.value = 1;
+      refreshSlotSelectOptions();
+      slotSelect.value = 0;
+      selectFormat('presentation');
+    }
+
+    function openActivityModal() {
+      resetActivityFormDefaults();
+      activityStatus.textContent = '';
+      activityModal.removeAttribute('hidden');
+      activityModal.classList.remove('is-hidden');
+      document.getElementById('activity-name').focus();
+    }
+
+    function closeActivityModal() {
+      activityModal.setAttribute('hidden', '');
+      activityModal.classList.add('is-hidden');
+    }
 
       function openCourseModal() {
         courseForm.reset();
@@ -362,9 +358,9 @@
           const option = document.createElement('option');
           option.value = halfDay.slotIndex;
           option.textContent = halfDay.sessionDate ? formatHalfDayLabel(halfDay) : `Créneau ${halfDay.slotIndex + 1}`;
-          slotSelect.appendChild(option);
-        });
-      }
+        slotSelect.appendChild(option);
+      });
+    }
 
     function fillCourseSelect(courses) {
       coursesCache = courses;
@@ -563,24 +559,8 @@
       type.className = 'activity__type';
       type.textContent = supportedFormats[activity.type] || activity.type;
 
-      const actions = document.createElement('div');
-      actions.className = 'activity__actions';
-
-      const editButton = document.createElement('button');
-      editButton.type = 'button';
-      editButton.className = 'icon-button icon-button--ghost activity__edit';
-      editButton.title = "Modifier l'activité";
-      editButton.innerHTML = '<span aria-hidden="true">✏️</span><span class="sr-only">Modifier</span>';
-      editButton.addEventListener('click', (event) => {
-        event.stopPropagation();
-        openActivityEditModal(activity, weekIndex, slotIndex);
-      });
-
-      actions.appendChild(type);
-      actions.appendChild(editButton);
-
       header.appendChild(title);
-      header.appendChild(actions);
+      header.appendChild(type);
 
       activityEl.appendChild(header);
 
@@ -726,33 +706,18 @@
             body: JSON.stringify(payload)
           });
 
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Sauvegarde impossible');
-          }
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Sauvegarde impossible');
+        }
 
-          const body = await response.json();
-          activityStatus.textContent = 'Activité enregistrée dans la base MariaDB.';
-          return body.activityId;
-        } catch (error) {
+        const body = await response.json();
+        activityStatus.textContent = 'Activité enregistrée dans la base MariaDB.';
+        return body.activityId;
+      } catch (error) {
           activityStatus.textContent = `⚠️ ${error.message}`;
           return null;
         }
-      }
-
-      async function updateActivity(activityId, payload) {
-        const response = await fetch(`/api/activities/${activityId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || "Impossible de mettre à jour l'activité.");
-        }
-
-        activityStatus.textContent = 'Activité mise à jour.';
       }
 
       async function moveActivity(activityId, weekNumber, slotIndex) {
@@ -791,80 +756,45 @@
         }
       });
 
-      activityForm.addEventListener('submit', async (event) => {
+      activityForm.addEventListener('submit', (event) => {
         event.preventDefault();
 
-        if (!currentCourseId) {
-          activityStatus.textContent = 'Sélectionnez ou créez un cours avant d’ajouter une activité.';
-          return;
-        }
+      if (!currentCourseId) {
+        activityStatus.textContent = 'Sélectionnez ou créez un cours avant d’ajouter une activité.';
+        return;
+      }
 
-        const name = document.getElementById('activity-name').value.trim();
-        const weekIndex = Number(weekSelect.value) - 1;
-        const slotIndex = Number(slotSelect.value);
-        const type = document.getElementById('type-select').value;
-        const duration = Number(document.getElementById('duration').value) || 0;
-        const details = document.getElementById('details').value.trim();
-        const materials = document.getElementById('materials').value.trim();
+      const name = document.getElementById('activity-name').value.trim();
+      const weekIndex = Number(weekSelect.value) - 1;
+      const slotIndex = Number(slotSelect.value);
+      const type = document.getElementById('type-select').value;
+      const duration = Number(document.getElementById('duration').value) || 0;
+      const details = document.getElementById('details').value.trim();
+      const materials = document.getElementById('materials').value.trim();
 
-        if (!name || duration <= 0) return;
+      if (!name || duration <= 0) return;
 
-        const isEditing = Boolean(editingActivity);
-        const activityPayload = {
-          name,
-          format: type,
-          details,
-          duration,
-          materials,
-          courseId: currentCourseId
-        };
-
-        try {
-          if (isEditing) {
-            activityStatus.textContent = 'Mise à jour de l’activité en cours...';
-            const { id, weekIndex: originalWeekIndex, slotIndex: originalSlotIndex } = editingActivity;
-            await updateActivity(id, activityPayload);
-
-            const updatedActivity = { id, name, type, details, duration, materials };
-            const sourceSlot = schedule[originalWeekIndex].slots[originalSlotIndex];
-            const existingIndex = sourceSlot.activities.findIndex((item) => item.id === id);
-            if (existingIndex !== -1) {
-              sourceSlot.activities.splice(existingIndex, 1);
-            }
-
-            const targetSlot = schedule[weekIndex].slots[slotIndex];
-            targetSlot.activities.push(updatedActivity);
-
-            if (originalWeekIndex !== weekIndex || originalSlotIndex !== slotIndex) {
-              await moveActivity(id, weekIndex + 1, slotIndex);
-            }
-
-            renderSchedule();
-            closeActivityModal();
-          } else {
-            const targetSlot = schedule[weekIndex].slots[slotIndex];
-            const activity = { name, type, details, duration, materials };
-            activityStatus.textContent = 'Enregistrement de l’activité en cours...';
-            const activityId = await persistActivity({
-              ...activityPayload,
-              week: weekIndex + 1,
-              slot: slotIndex
-            });
-
-            if (activityId) {
-              targetSlot.activities.push({ ...activity, id: activityId });
-              renderSchedule();
-              setActivityModalToCreation();
-              closeActivityModal();
-            }
-          }
-        } catch (error) {
-          activityStatus.textContent = `⚠️ ${error.message}`;
-          if (isEditing) {
-            loadActivitiesForCourse(currentCourseId);
-          }
+      const targetSlot = schedule[weekIndex].slots[slotIndex];
+      const activity = { name, type, details, duration, materials };
+      activityStatus.textContent = 'Enregistrement de l’activité en cours...';
+      persistActivity({
+        name,
+        week: weekIndex + 1,
+        slot: slotIndex,
+        format: type,
+        details,
+        duration,
+        materials,
+        courseId: currentCourseId
+      }).then((activityId) => {
+        if (activityId) {
+          targetSlot.activities.push({ ...activity, id: activityId });
+          renderSchedule();
+          resetActivityFormDefaults();
+          closeActivityModal();
         }
       });
+    });
 
     courseForm.addEventListener('submit', async (event) => {
       event.preventDefault();
