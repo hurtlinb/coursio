@@ -251,6 +251,42 @@ app.post('/api/courses', async (req, res) => {
   }
 });
 
+app.delete('/api/courses/:courseId', async (req, res) => {
+  try {
+    const courseId = Number(req.params.courseId);
+    const providedModuleNumber = (req.body?.moduleNumber || '').trim();
+
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      return res.status(400).json({ error: 'Identifiant de cours invalide.' });
+    }
+
+    if (!providedModuleNumber) {
+      return res.status(400).json({ error: 'Le numéro du module est requis pour confirmer la suppression.' });
+    }
+
+    const [courses] = await pool.query(
+      'SELECT module_number AS moduleNumber FROM courses WHERE id = ? LIMIT 1',
+      [courseId]
+    );
+
+    if (courses.length === 0) {
+      return res.status(404).json({ error: 'Cours introuvable.' });
+    }
+
+    const course = courses[0];
+    if (course.moduleNumber !== providedModuleNumber) {
+      return res.status(400).json({ error: 'Le numéro du module ne correspond pas à ce cours.' });
+    }
+
+    await pool.query('DELETE FROM courses WHERE id = ?', [courseId]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erreur lors de la suppression du cours :', error.message);
+    res.status(500).json({ error: 'Impossible de supprimer le cours pour le moment.' });
+  }
+});
+
 app.get('/api/courses/:courseId/activities', async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);

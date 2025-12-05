@@ -239,6 +239,17 @@ h1 {
   outline: none;
 }
 
+.icon-button--danger {
+  color: #fecdd3;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.icon-button--danger:hover,
+.icon-button--danger:focus-visible {
+  background: rgba(239, 68, 68, 0.18);
+}
+
 .is-hidden {
   display: none;
 }
