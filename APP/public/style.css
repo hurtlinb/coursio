@@ -517,6 +517,44 @@ h1 {
   color: var(--muted);
 }
 
+.activity-menu {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 50;
+  min-width: 170px;
+}
+
+.activity-menu.is-visible {
+  display: flex;
+}
+
+.activity-menu__item {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: #111827;
+}
+
+.activity-menu__item:hover,
+.activity-menu__item:focus {
+  background: #f3f4f6;
+}
+
+.activity-menu__item--danger {
+  color: #b91c1c;
+}
+
 .empty {
   color: var(--muted);
   font-style: italic;
