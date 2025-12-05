@@ -500,6 +500,18 @@ h1 {
   gap: 10px;
 }
 
+.activity__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity__edit {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
 .activity__title {
   font-weight: 700;
 }
