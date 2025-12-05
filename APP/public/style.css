@@ -355,6 +355,42 @@ h1 {
   resize: vertical;
 }
 
+.format-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 8px;
+}
+
+.format-chip {
+  align-items: center;
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.format-chip:hover,
+.format-chip:focus-visible {
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.format-chip.is-selected {
+  background: linear-gradient(145deg, rgba(124, 58, 237, 0.4), rgba(34, 211, 238, 0.3));
+  border-color: rgba(124, 58, 237, 0.7);
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.35);
+}
+
+.format-chip__icon {
+  font-size: 22px;
+}
+
 .timeline {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);

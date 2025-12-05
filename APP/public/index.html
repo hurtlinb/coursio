@@ -95,15 +95,30 @@
 
         <label class="form-field">
           <span>Format</span>
-          <select id="type-select">
-            <option value="presentation">Présentation</option>
-            <option value="exercice">Exercice</option>
-            <option value="travail_de_groupe">Travail de groupe</option>
-            <option value="jeu">Jeu</option>
-            <option value="recherche_information">Recherche d'information</option>
-            <option value="synthese">Synthèse</option>
-            <option value="evaluation">Évaluation</option>
-          </select>
+          <input type="hidden" id="type-select" value="presentation">
+          <div class="format-selector" id="format-selector" role="group" aria-label="Choisir un format">
+            <button class="format-chip is-selected" type="button" data-format="presentation" title="Présentation" aria-label="Présentation" aria-pressed="true">
+              <span class="format-chip__icon" aria-hidden="true">📢</span>
+            </button>
+            <button class="format-chip" type="button" data-format="exercice" title="Exercice" aria-label="Exercice" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🧠</span>
+            </button>
+            <button class="format-chip" type="button" data-format="travail_de_groupe" title="Travail de groupe" aria-label="Travail de groupe" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🤝</span>
+            </button>
+            <button class="format-chip" type="button" data-format="jeu" title="Jeu" aria-label="Jeu" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🎲</span>
+            </button>
+            <button class="format-chip" type="button" data-format="recherche_information" title="Recherche d'information" aria-label="Recherche d'information" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🔎</span>
+            </button>
+            <button class="format-chip" type="button" data-format="synthese" title="Synthèse" aria-label="Synthèse" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">📝</span>
+            </button>
+            <button class="format-chip" type="button" data-format="evaluation" title="Évaluation" aria-label="Évaluation" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">✅</span>
+            </button>
+          </div>
         </label>
 
         <label class="form-field">
@@ -241,6 +256,8 @@
     const activityModal = document.getElementById('activity-modal');
     const activityModalBackdrop = document.querySelector('[data-close-activity-modal]');
     const activityStatus = document.getElementById('activity-status');
+    const formatSelector = document.getElementById('format-selector');
+    const formatInput = document.getElementById('type-select');
     const closeActivityModalBtn = document.getElementById('close-activity-modal');
     const courseForm = document.getElementById('course-form');
     const courseModal = document.getElementById('course-modal');
@@ -260,26 +277,48 @@
     let dropHandled = false;
     let currentCourseId = null;
 
-      function resetActivityFormDefaults() {
-        activityForm.reset();
-        document.getElementById('duration').value = 60;
-        weekSelect.value = 1;
-        refreshSlotSelectOptions();
-        slotSelect.value = 0;
-      }
+    function selectFormat(format) {
+      if (!formatSelector) return;
 
-      function openActivityModal() {
-        resetActivityFormDefaults();
-        activityStatus.textContent = '';
-        activityModal.removeAttribute('hidden');
-        activityModal.classList.remove('is-hidden');
-        document.getElementById('activity-name').focus();
-      }
+      formatInput.value = format;
+      formatSelector.querySelectorAll('.format-chip').forEach((button) => {
+        const isSelected = button.dataset.format === format;
+        button.classList.toggle('is-selected', isSelected);
+        button.setAttribute('aria-pressed', String(isSelected));
+      });
+    }
 
-      function closeActivityModal() {
-        activityModal.setAttribute('hidden', '');
-        activityModal.classList.add('is-hidden');
-      }
+    function initializeFormatSelector() {
+      if (!formatSelector) return;
+
+      formatSelector.querySelectorAll('.format-chip').forEach((button) => {
+        button.addEventListener('click', () => selectFormat(button.dataset.format));
+      });
+
+      selectFormat(formatInput.value || Object.keys(supportedFormats)[0]);
+    }
+
+    function resetActivityFormDefaults() {
+      activityForm.reset();
+      document.getElementById('duration').value = 60;
+      weekSelect.value = 1;
+      refreshSlotSelectOptions();
+      slotSelect.value = 0;
+      selectFormat('presentation');
+    }
+
+    function openActivityModal() {
+      resetActivityFormDefaults();
+      activityStatus.textContent = '';
+      activityModal.removeAttribute('hidden');
+      activityModal.classList.remove('is-hidden');
+      document.getElementById('activity-name').focus();
+    }
+
+    function closeActivityModal() {
+      activityModal.setAttribute('hidden', '');
+      activityModal.classList.add('is-hidden');
+    }
 
       function openCourseModal() {
         courseForm.reset();
@@ -799,6 +838,7 @@
       await loadActivitiesForCourse(currentCourseId);
     });
 
+    initializeFormatSelector();
     renderSchedule();
     refreshSlotSelectOptions();
     loadCourses();
