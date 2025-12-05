@@ -24,127 +24,37 @@
         </div>
       </div>
 
+      <div class="course-toolbar" aria-label="Sélection des cours">
+        <div>
+          <p class="label">Cours</p>
+          <p class="muted">Choisissez un cours pour gérer les activités, ou créez-en un nouveau.</p>
+        </div>
+        <div class="course-toolbar__actions">
+          <label class="form-field form-field--inline">
+            <span>Cours disponibles</span>
+            <select id="course-select"></select>
+          </label>
+          <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
+          <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
+            <span aria-hidden="true">+</span>
+            <span class="sr-only">Créer un nouveau cours</span>
+          </button>
+        </div>
+      </div>
+
         <div class="planner__grid">
-          <div class="course-panel">
-            <div class="course-panel__header">
-              <div>
-                <p class="label">Cours</p>
-                <p class="muted">Sélectionnez un cours existant ou créez-en un nouveau.</p>
-              </div>
-              <div class="course-panel__select">
-                <label class="form-field">
-                  <span>Cours disponibles</span>
-                  <select id="course-select"></select>
-                </label>
-                <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
-                <button class="icon-button" id="toggle-course-form" type="button" aria-expanded="false" aria-controls="course-form">
-                  <span aria-hidden="true">+</span>
-                  <span class="sr-only">Créer un cours</span>
-                </button>
-              </div>
-            </div>
-
-            <form class="course-form is-hidden" id="course-form" hidden>
-              <div class="form-row">
-                <label class="form-field">
-                  <span>Enseignant</span>
-                  <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
-                </label>
-                <label class="form-field">
-                  <span>Classe</span>
-                  <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="form-field">
-                  <span>Salle</span>
-                  <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
-                </label>
-                <label class="form-field">
-                  <span>Module</span>
-                  <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
-                </label>
-              </div>
-              <label class="form-field">
-                <span>Titre du module</span>
-                <input type="text" id="course-name" placeholder="Nom du module" required>
-              </label>
-              <div class="course-form__actions">
-                <button class="btn btn-primary" type="submit">Créer le cours</button>
-                <p class="muted" id="course-status" aria-live="polite"></p>
-              </div>
-            </form>
-          </div>
-
           <div class="panel-card">
             <div class="panel-card__header">
               <div>
                 <p class="label">Activités</p>
-                <p class="muted">Ouvrez le formulaire pour planifier une activité.</p>
+                <p class="muted">Cliquez sur le "+" pour ouvrir le masque de saisie.</p>
               </div>
-              <button class="icon-button" id="toggle-activity-form" type="button" aria-expanded="false" aria-controls="activity-form">
+              <button class="icon-button" id="open-activity-modal" type="button" aria-haspopup="dialog">
                 <span aria-hidden="true">+</span>
                 <span class="sr-only">Ajouter une activité</span>
               </button>
             </div>
-
-            <form class="activity-form is-hidden" id="activity-form" hidden>
-              <label class="form-field">
-                <span>Nom de l'activité</span>
-                <input type="text" id="activity-name" placeholder="Ex : Atelier de prototypage" required>
-              </label>
-
-              <div class="form-row">
-                <label class="form-field">
-                  <span>Semaine (1 à 5)</span>
-                  <select id="week-select">
-                    <option value="1">Semaine 1</option>
-                    <option value="2">Semaine 2</option>
-                    <option value="3">Semaine 3</option>
-                    <option value="4">Semaine 4</option>
-                    <option value="5">Semaine 5</option>
-                  </select>
-                </label>
-                <label class="form-field">
-                  <span>Demi-jour</span>
-                  <select id="slot-select">
-                    <option value="0">Matin</option>
-                    <option value="1">Après-midi</option>
-                  </select>
-                </label>
-              </div>
-
-              <label class="form-field">
-                <span>Format</span>
-                <select id="type-select">
-                  <option value="presentation">Présentation</option>
-                  <option value="exercice">Exercice</option>
-                  <option value="travail_de_groupe">Travail de groupe</option>
-                  <option value="jeu">Jeu</option>
-                  <option value="recherche_information">Recherche d'information</option>
-                  <option value="synthese">Synthèse</option>
-                  <option value="evaluation">Évaluation</option>
-                </select>
-              </label>
-
-              <label class="form-field">
-                <span>Durée (minutes)</span>
-                <input type="number" id="duration" min="1" max="480" value="60" required>
-              </label>
-
-              <label class="form-field">
-                <span>Détails (facultatif)</span>
-                <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
-              </label>
-
-              <label class="form-field">
-                <span>Matériel (facultatif)</span>
-                <textarea id="materials" rows="2" placeholder="Listez les ressources utiles"></textarea>
-              </label>
-
-              <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
-              <p class="muted" id="status" aria-live="polite"></p>
-            </form>
+            <p class="muted">Sélectionnez un cours puis renseignez les informations de l'activité dans le masque.</p>
           </div>
 
           <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
@@ -173,6 +83,123 @@
     </section>
   </main>
 
+  <div class="activity-modal is-hidden" id="activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title" hidden>
+    <div class="activity-modal__backdrop" data-close-activity-modal></div>
+    <div class="activity-modal__content">
+      <div class="activity-modal__header">
+        <div>
+          <p class="label" id="activity-modal-title">Nouvelle activité</p>
+          <p class="muted">Renseignez les détails pour l’ajouter au planning.</p>
+        </div>
+        <button class="icon-button icon-button--ghost" id="close-activity-modal" type="button" aria-label="Fermer le formulaire">×</button>
+      </div>
+
+      <form class="activity-form" id="activity-form">
+        <label class="form-field">
+          <span>Nom de l'activité</span>
+          <input type="text" id="activity-name" placeholder="Ex : Atelier de prototypage" required>
+        </label>
+
+        <div class="form-row">
+          <label class="form-field">
+            <span>Semaine (1 à 5)</span>
+            <select id="week-select">
+              <option value="1">Semaine 1</option>
+              <option value="2">Semaine 2</option>
+              <option value="3">Semaine 3</option>
+              <option value="4">Semaine 4</option>
+              <option value="5">Semaine 5</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span>Demi-jour</span>
+            <select id="slot-select">
+              <option value="0">Matin</option>
+              <option value="1">Après-midi</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="form-field">
+          <span>Format</span>
+          <select id="type-select">
+            <option value="presentation">Présentation</option>
+            <option value="exercice">Exercice</option>
+            <option value="travail_de_groupe">Travail de groupe</option>
+            <option value="jeu">Jeu</option>
+            <option value="recherche_information">Recherche d'information</option>
+            <option value="synthese">Synthèse</option>
+            <option value="evaluation">Évaluation</option>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Durée (minutes)</span>
+          <input type="number" id="duration" min="1" max="480" value="60" required>
+        </label>
+
+        <label class="form-field">
+          <span>Détails (facultatif)</span>
+          <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
+        </label>
+
+        <label class="form-field">
+          <span>Matériel (facultatif)</span>
+          <textarea id="materials" rows="2" placeholder="Listez les ressources utiles"></textarea>
+        </label>
+
+        <div class="course-form__actions">
+          <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
+          <p class="muted" id="activity-status" aria-live="polite"></p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="course-modal is-hidden" id="course-modal" role="dialog" aria-modal="true" aria-labelledby="course-modal-title" hidden>
+    <div class="course-modal__backdrop" data-close-course-modal></div>
+    <div class="course-modal__content">
+      <div class="course-modal__header">
+        <div>
+          <p class="label" id="course-modal-title">Nouveau cours</p>
+          <p class="muted">Renseignez les informations principales pour le créer.</p>
+        </div>
+        <button class="icon-button icon-button--ghost" id="close-course-modal" type="button" aria-label="Fermer le formulaire">×</button>
+      </div>
+
+      <form class="course-form" id="course-form">
+        <div class="form-row">
+          <label class="form-field">
+            <span>Enseignant</span>
+            <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
+          </label>
+          <label class="form-field">
+            <span>Classe</span>
+            <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label class="form-field">
+            <span>Salle</span>
+            <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
+          </label>
+          <label class="form-field">
+            <span>Module</span>
+            <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
+          </label>
+        </div>
+        <label class="form-field">
+          <span>Titre du module</span>
+          <input type="text" id="course-name" placeholder="Nom du module" required>
+        </label>
+        <div class="course-form__actions">
+          <button class="btn btn-primary" type="submit">Créer le cours</button>
+          <p class="muted" id="course-status" aria-live="polite"></p>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <footer class="footer">
     <p>Créé pour vous par l'équipe Coursio.</p>
   </footer>
@@ -200,19 +227,26 @@
     let schedule = createEmptySchedule();
 
     const timeline = document.getElementById('timeline');
-    const form = document.getElementById('activity-form');
+    const activityForm = document.getElementById('activity-form');
+    const activityModal = document.getElementById('activity-modal');
+    const activityModalBackdrop = document.querySelector('[data-close-activity-modal]');
+    const activityStatus = document.getElementById('activity-status');
+    const closeActivityModalBtn = document.getElementById('close-activity-modal');
     const courseForm = document.getElementById('course-form');
+    const courseModal = document.getElementById('course-modal');
     const courseSelect = document.getElementById('course-select');
-      const courseStatus = document.getElementById('course-status');
-      const dbStatus = document.getElementById('db-status');
-      const dbStatusDot = document.getElementById('db-status-dot');
-      const dbStatusText = document.getElementById('db-status-text');
-      const reloadActivitiesBtn = document.getElementById('reload-activities');
-      const toggleActivityFormBtn = document.getElementById('toggle-activity-form');
-      const toggleCourseFormBtn = document.getElementById('toggle-course-form');
-      let draggedActivity = null;
-      let dropHandled = false;
-      let currentCourseId = null;
+    const courseStatus = document.getElementById('course-status');
+    const dbStatus = document.getElementById('db-status');
+    const dbStatusDot = document.getElementById('db-status-dot');
+    const dbStatusText = document.getElementById('db-status-text');
+    const closeCourseModalBtn = document.getElementById('close-course-modal');
+    const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
+    const reloadActivitiesBtn = document.getElementById('reload-activities');
+    const openActivityModalBtn = document.getElementById('open-activity-modal');
+    const openCourseModalBtn = document.getElementById('open-course-modal');
+    let draggedActivity = null;
+    let dropHandled = false;
+    let currentCourseId = null;
 
       function setDbStatus(state, message) {
         dbStatus.dataset.state = state;
@@ -220,18 +254,37 @@
         dbStatusText.textContent = message;
       }
 
-      function togglePanel(button, panel) {
-        const isHidden = panel.hasAttribute('hidden');
+      function resetActivityFormDefaults() {
+        activityForm.reset();
+        document.getElementById('duration').value = 60;
+        document.getElementById('week-select').value = 1;
+        document.getElementById('slot-select').value = 0;
+      }
 
-        if (isHidden) {
-          panel.removeAttribute('hidden');
-          panel.classList.remove('is-hidden');
-          button.setAttribute('aria-expanded', 'true');
-        } else {
-          panel.setAttribute('hidden', '');
-          panel.classList.add('is-hidden');
-          button.setAttribute('aria-expanded', 'false');
-        }
+      function openActivityModal() {
+        resetActivityFormDefaults();
+        activityStatus.textContent = '';
+        activityModal.removeAttribute('hidden');
+        activityModal.classList.remove('is-hidden');
+        document.getElementById('activity-name').focus();
+      }
+
+      function closeActivityModal() {
+        activityModal.setAttribute('hidden', '');
+        activityModal.classList.add('is-hidden');
+      }
+
+      function openCourseModal() {
+        courseForm.reset();
+        courseStatus.textContent = '';
+        courseModal.removeAttribute('hidden');
+        courseModal.classList.remove('is-hidden');
+        document.getElementById('course-teacher').focus();
+      }
+
+      function closeCourseModal() {
+        courseModal.setAttribute('hidden', '');
+        courseModal.classList.add('is-hidden');
       }
 
     async function refreshDbStatus() {
@@ -534,10 +587,10 @@
         }
 
         const body = await response.json();
-        status.textContent = 'Activité enregistrée dans la base MariaDB.';
+        activityStatus.textContent = 'Activité enregistrée dans la base MariaDB.';
         return body.activityId;
       } catch (error) {
-          status.textContent = `⚠️ ${error.message}`;
+          activityStatus.textContent = `⚠️ ${error.message}`;
           return null;
         }
       }
@@ -557,14 +610,28 @@
         });
       }
 
-      toggleActivityFormBtn.addEventListener('click', () => togglePanel(toggleActivityFormBtn, form));
-      toggleCourseFormBtn.addEventListener('click', () => togglePanel(toggleCourseFormBtn, courseForm));
+      openActivityModalBtn.addEventListener('click', openActivityModal);
+      closeActivityModalBtn.addEventListener('click', closeActivityModal);
+      activityModalBackdrop.addEventListener('click', closeActivityModal);
+      openCourseModalBtn.addEventListener('click', openCourseModal);
+      closeCourseModalBtn.addEventListener('click', closeCourseModal);
+      courseModalBackdrop.addEventListener('click', closeCourseModal);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          if (!courseModal.hasAttribute('hidden')) {
+            closeCourseModal();
+          }
+          if (!activityModal.hasAttribute('hidden')) {
+            closeActivityModal();
+          }
+        }
+      });
 
-      form.addEventListener('submit', (event) => {
+      activityForm.addEventListener('submit', (event) => {
         event.preventDefault();
 
       if (!currentCourseId) {
-        status.textContent = 'Sélectionnez ou créez un cours avant d’ajouter une activité.';
+        activityStatus.textContent = 'Sélectionnez ou créez un cours avant d’ajouter une activité.';
         return;
       }
 
@@ -580,7 +647,7 @@
 
       const targetSlot = schedule[weekIndex].slots[slotIndex];
       const activity = { name, type, details, duration, materials };
-      status.textContent = 'Enregistrement de l’activité en cours...';
+      activityStatus.textContent = 'Enregistrement de l’activité en cours...';
       persistActivity({
         name,
         week: weekIndex + 1,
@@ -594,10 +661,8 @@
         if (activityId) {
           targetSlot.activities.push({ ...activity, id: activityId });
           renderSchedule();
-          form.reset();
-          document.getElementById('duration').value = 60;
-          document.getElementById('week-select').value = weekIndex + 1;
-          document.getElementById('slot-select').value = slotIndex;
+          resetActivityFormDefaults();
+          closeActivityModal();
         }
       });
     });
@@ -629,6 +694,7 @@
         courseForm.reset();
         courseStatus.textContent = 'Cours créé avec succès !';
         await loadCourses();
+        closeCourseModal();
       } catch (error) {
         courseStatus.textContent = `⚠️ ${error.message}`;
       }
