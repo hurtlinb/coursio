@@ -223,12 +223,12 @@ function computeHalfDaySession(startDate, startSlotIndex, weekNumber, slotIndex)
   };
 }
 
-function buildExpectedHalfDays(startDate, startSlotIndex) {
+function buildExpectedHalfDays(startDate, startSlotIndex, startingWeekNumber = 1) {
   const halfDays = [];
 
-  for (let week = 1; week <= 5; week += 1) {
+  for (let week = startingWeekNumber; week <= 5; week += 1) {
     for (let slot = 0; slot < 3; slot += 1) {
-      const { sessionDate, period } = computeHalfDaySession(startDate, startSlotIndex, week, slot);
+      const { sessionDate, period } = computeHalfDaySession(startDate, startSlotIndex, week - startingWeekNumber + 1, slot);
       halfDays.push({
         weekNumber: week,
         slotIndex: slot,
@@ -237,6 +237,19 @@ function buildExpectedHalfDays(startDate, startSlotIndex) {
       });
     }
   }
+
+  return halfDays;
+}
+
+async function listCourseHalfDays(courseId, teacherId) {
+  const [halfDays] = await pool.query(
+    `SELECT h.id, h.week_number AS weekNumber, h.slot_index AS slotIndex, h.session_date AS sessionDate, h.period
+     FROM half_days h
+     INNER JOIN courses c ON h.course_id = c.id
+     WHERE h.course_id = ? AND c.teacher_id = ?
+     ORDER BY h.week_number, h.slot_index`,
+    [courseId, teacherId]
+  );
 
   return halfDays;
 }
@@ -272,17 +285,30 @@ async function ensureHalfDaysForCourse(courseId, teacherId) {
   if (startSlotIndex === -1) {
     return [];
   }
+
+  const existingHalfDays = await listCourseHalfDays(courseId, teacherId);
+
+  const hasAllHalfDays = existingHalfDays.length >= 15;
+  if (hasAllHalfDays) {
+    return existingHalfDays;
+  }
+
   const expectedHalfDays = buildExpectedHalfDays(course.startDate, startSlotIndex);
+  const existingKeys = new Set(existingHalfDays.map((halfDay) => `${halfDay.weekNumber}-${halfDay.slotIndex}`));
 
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
     for (const halfDay of expectedHalfDays) {
+      const key = `${halfDay.weekNumber}-${halfDay.slotIndex}`;
+      if (existingKeys.has(key)) {
+        continue;
+      }
+
       await connection.query(
         `INSERT INTO half_days (course_id, week_number, slot_index, session_date, period)
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE session_date = VALUES(session_date), period = VALUES(period)`,
+         VALUES (?, ?, ?, ?, ?)`,
         [courseId, halfDay.weekNumber, halfDay.slotIndex, halfDay.sessionDate, halfDay.period]
       );
     }
@@ -295,7 +321,7 @@ async function ensureHalfDaysForCourse(courseId, teacherId) {
     connection.release();
   }
 
-  return expectedHalfDays;
+  return listCourseHalfDays(courseId, teacherId);
 }
 
 async function getHalfDayForCourse(courseId, weekNumber, slotIndex, teacherId) {
@@ -726,16 +752,7 @@ app.get('/api/courses/:courseId/half-days', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Cours introuvable.' });
     }
 
-    await ensureHalfDaysForCourse(courseId, req.user.id);
-
-    const [halfDays] = await pool.query(
-      `SELECT h.id, h.week_number AS weekNumber, h.slot_index AS slotIndex, h.session_date AS sessionDate, h.period
-       FROM half_days h
-       INNER JOIN courses c ON h.course_id = c.id
-       WHERE h.course_id = ? AND c.teacher_id = ?
-       ORDER BY h.week_number, h.slot_index`,
-      [courseId, req.user.id]
-    );
+    const halfDays = await ensureHalfDaysForCourse(courseId, req.user.id);
 
     res.json({
       course: {
@@ -748,6 +765,69 @@ app.get('/api/courses/:courseId/half-days', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la récupération des demi-jours :', error.message);
     res.status(500).json({ error: 'Impossible de récupérer les demi-jours pour ce cours.' });
+  }
+});
+
+app.post('/api/courses/:courseId/weeks/:weekNumber/reschedule', requireAuth, async (req, res) => {
+  try {
+    const courseId = Number(req.params.courseId);
+    const weekNumber = Number(req.params.weekNumber);
+    const { startDate } = req.body || {};
+
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      return res.status(400).json({ error: 'Identifiant de cours invalide.' });
+    }
+
+    if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 5) {
+      return res.status(400).json({ error: 'La semaine doit être comprise entre 1 et 5.' });
+    }
+
+    if (!isValidDateString(startDate)) {
+      return res.status(400).json({ error: 'La date de début est invalide.' });
+    }
+
+    const course = await getCourse(courseId, req.user.id);
+    if (!course) {
+      return res.status(404).json({ error: 'Cours introuvable.' });
+    }
+
+    const startSlotIndex = slotToPeriod.indexOf(course.startPeriod);
+    if (startSlotIndex === -1) {
+      return res.status(400).json({ error: 'Demi-journée de début introuvable pour ce cours.' });
+    }
+
+    const halfDaysToUpdate = buildExpectedHalfDays(startDate, startSlotIndex, weekNumber);
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      if (weekNumber === 1) {
+        await connection.query('UPDATE courses SET start_date = ? WHERE id = ? AND teacher_id = ?', [startDate, courseId, req.user.id]);
+      }
+
+      for (const halfDay of halfDaysToUpdate) {
+        await connection.query(
+          `INSERT INTO half_days (course_id, week_number, slot_index, session_date, period)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE session_date = VALUES(session_date), period = VALUES(period)`,
+          [courseId, halfDay.weekNumber, halfDay.slotIndex, halfDay.sessionDate, halfDay.period]
+        );
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    const halfDays = await listCourseHalfDays(courseId, req.user.id);
+    res.json({ halfDays });
+  } catch (error) {
+    console.error('Erreur lors du recalcul des semaines :', error.message);
+    res.status(500).json({ error: 'Impossible de recalculer les dates pour ce cours.' });
   }
 });
 

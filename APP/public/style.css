@@ -516,6 +516,25 @@ h1 {
   gap: 10px;
 }
 
+.week-card__title-button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.week-card__title-button:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
+}
+
+.week-card__title-button:hover {
+  color: var(--accent-1);
+}
+
 .week-card__header {
   display: flex;
   justify-content: space-between;

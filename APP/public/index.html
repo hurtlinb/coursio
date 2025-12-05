@@ -289,6 +289,21 @@
       return buildSchedule();
     }
 
+    function isValidDateInput(value) {
+      if (typeof value !== 'string') return false;
+
+      const parsed = new Date(value);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    }
+
+    function getWeekStartDate(weekNumber) {
+      const startingHalfDay = courseHalfDays.find(
+        (halfDay) => halfDay.weekNumber === weekNumber && halfDay.slotIndex === 0
+      );
+
+      return startingHalfDay?.sessionDate || '';
+    }
+
     let schedule = buildSchedule();
     let courseHalfDays = [];
 
@@ -805,6 +820,58 @@
       return lastFilledSlot === -1 ? 0 : lastFilledSlot;
     }
 
+    async function rescheduleWeekDates(weekIndex) {
+      if (!currentCourseId) {
+        courseStatus.textContent = 'Sélectionnez ou créez un cours avant de modifier les dates.';
+        return;
+      }
+
+      const weekNumber = weekIndex + 1;
+      const currentStartDate = getWeekStartDate(weekNumber);
+      const promptValue = window.prompt(
+        `Nouvelle date de début pour la semaine ${weekNumber} (format AAAA-MM-JJ) :`,
+        currentStartDate
+      );
+
+      if (promptValue === null) {
+        return;
+      }
+
+      const normalizedDate = promptValue.trim();
+
+      if (!isValidDateInput(normalizedDate)) {
+        courseStatus.textContent = 'Veuillez saisir une date valide au format AAAA-MM-JJ.';
+        return;
+      }
+
+      courseStatus.textContent = 'Recalcul des dates des semaines...';
+
+      try {
+        const response = await authorizedFetch(
+          `/api/courses/${currentCourseId}/weeks/${weekNumber}/reschedule`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ startDate: normalizedDate })
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Impossible de mettre à jour les dates.');
+        }
+
+        const { halfDays } = await response.json();
+        courseHalfDays = halfDays || [];
+        schedule = buildSchedule(courseHalfDays);
+        renderSchedule();
+        courseStatus.textContent = `Dates mises à jour à partir de la semaine ${weekNumber}.`;
+      } catch (error) {
+        if (error.message === 'UNAUTHORIZED') return;
+        courseStatus.textContent = `⚠️ ${error.message}`;
+      }
+    }
+
     function renderSchedule() {
       timeline.innerHTML = '';
 
@@ -818,9 +885,11 @@
         const headerMeta = document.createElement('div');
         headerMeta.className = 'week-card__meta';
 
-        const weekLabel = document.createElement('p');
-        weekLabel.className = 'label';
+        const weekLabel = document.createElement('button');
+        weekLabel.type = 'button';
+        weekLabel.className = 'label week-card__title-button';
         weekLabel.textContent = `Semaine ${week.week}`;
+        weekLabel.addEventListener('click', () => rescheduleWeekDates(weekIndex));
 
         headerMeta.appendChild(weekLabel);
 
