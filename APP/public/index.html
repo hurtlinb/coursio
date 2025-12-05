@@ -25,6 +25,53 @@
       </div>
 
       <div class="planner__grid">
+        <div class="course-panel">
+          <div class="course-panel__header">
+            <div>
+              <p class="label">Cours</p>
+              <p class="muted">Sélectionnez un cours existant ou créez-en un nouveau.</p>
+            </div>
+            <div class="course-panel__select">
+              <label class="form-field">
+                <span>Cours disponibles</span>
+                <select id="course-select"></select>
+              </label>
+              <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
+            </div>
+          </div>
+
+          <form class="course-form" id="course-form">
+            <div class="form-row">
+              <label class="form-field">
+                <span>Enseignant</span>
+                <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
+              </label>
+              <label class="form-field">
+                <span>Classe</span>
+                <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="form-field">
+                <span>Salle</span>
+                <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
+              </label>
+              <label class="form-field">
+                <span>Module</span>
+                <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
+              </label>
+            </div>
+            <label class="form-field">
+              <span>Titre du module</span>
+              <input type="text" id="course-name" placeholder="Nom du module" required>
+            </label>
+            <div class="course-form__actions">
+              <button class="btn btn-primary" type="submit">Créer le cours</button>
+              <p class="muted" id="course-status" aria-live="polite"></p>
+            </div>
+          </form>
+        </div>
+
         <form class="activity-form" id="activity-form">
           <h3>Nouvelle activité</h3>
           <label class="form-field">
@@ -127,18 +174,27 @@
       evaluation: 'Évaluation'
     };
 
-    const schedule = Array.from({ length: weeks }, (_, index) => ({
-      week: index + 1,
-      slots: slotLabels.map(label => ({ label, activities: [] }))
-    }));
+    function createEmptySchedule() {
+      return Array.from({ length: weeks }, (_, index) => ({
+        week: index + 1,
+        slots: slotLabels.map(label => ({ label, activities: [] }))
+      }));
+    }
+
+    let schedule = createEmptySchedule();
 
     const timeline = document.getElementById('timeline');
     const form = document.getElementById('activity-form');
+    const courseForm = document.getElementById('course-form');
+    const courseSelect = document.getElementById('course-select');
+    const courseStatus = document.getElementById('course-status');
     const dbStatus = document.getElementById('db-status');
     const dbStatusDot = document.getElementById('db-status-dot');
     const dbStatusText = document.getElementById('db-status-text');
+    const reloadActivitiesBtn = document.getElementById('reload-activities');
     let draggedActivity = null;
     let dropHandled = false;
+    let currentCourseId = null;
 
     function setDbStatus(state, message) {
       dbStatus.dataset.state = state;
@@ -164,6 +220,52 @@
         }
       } catch (error) {
         setDbStatus('error', 'Base de données inaccessible.');
+      }
+    }
+
+    function fillCourseSelect(courses) {
+      courseSelect.innerHTML = '';
+
+      courses.forEach((course) => {
+        const option = document.createElement('option');
+        option.value = course.id;
+        option.textContent = `${course.moduleNumber} — ${course.moduleName}`;
+        courseSelect.appendChild(option);
+      });
+
+      if (!currentCourseId && courses.length > 0) {
+        currentCourseId = courses[0].id;
+      }
+
+      if (currentCourseId) {
+        courseSelect.value = currentCourseId;
+      }
+    }
+
+    async function loadCourses() {
+      courseStatus.textContent = 'Chargement des cours...';
+
+      try {
+        const response = await fetch('/api/courses');
+        if (!response.ok) {
+          throw new Error();
+        }
+
+        const courses = await response.json();
+        fillCourseSelect(courses);
+
+        if (courses.length === 0) {
+          courseStatus.textContent = 'Aucun cours disponible pour le moment.';
+          schedule = createEmptySchedule();
+          renderSchedule();
+          return;
+        }
+
+        courseStatus.textContent = '';
+        currentCourseId = Number(courseSelect.value);
+        await loadActivitiesForCourse(currentCourseId);
+      } catch (error) {
+        courseStatus.textContent = 'Impossible de charger les cours.';
       }
     }
 
@@ -341,6 +443,43 @@
       });
     }
 
+    async function loadActivitiesForCourse(courseId) {
+      if (!courseId) return;
+
+      schedule = createEmptySchedule();
+      renderSchedule();
+      courseStatus.textContent = 'Chargement des activités du cours...';
+
+      try {
+        const response = await fetch(`/api/courses/${courseId}/activities`);
+        if (!response.ok) {
+          throw new Error();
+        }
+
+        const activities = await response.json();
+
+        activities.forEach((activity) => {
+          const weekIndex = activity.week - 1;
+          const slotIndex = activity.slot;
+
+          if (schedule[weekIndex] && schedule[weekIndex].slots[slotIndex]) {
+            schedule[weekIndex].slots[slotIndex].activities.push({
+              name: activity.name,
+              type: activity.type,
+              details: activity.details,
+              duration: activity.duration,
+              materials: activity.materials
+            });
+          }
+        });
+
+        courseStatus.textContent = '';
+        renderSchedule();
+      } catch (error) {
+        courseStatus.textContent = 'Impossible de charger les activités du cours.';
+      }
+    }
+
     async function persistActivity(payload) {
       try {
         const response = await fetch('/api/activities', {
@@ -355,13 +494,20 @@
         }
 
         status.textContent = 'Activité enregistrée dans la base MariaDB.';
+        return true;
       } catch (error) {
         status.textContent = `⚠️ ${error.message}`;
+        return false;
       }
     }
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
+
+      if (!currentCourseId) {
+        status.textContent = 'Sélectionnez ou créez un cours avant d’ajouter une activité.';
+        return;
+      }
 
       const name = document.getElementById('activity-name').value.trim();
       const weekIndex = Number(document.getElementById('week-select').value) - 1;
@@ -375,8 +521,6 @@
 
       const targetSlot = schedule[weekIndex].slots[slotIndex];
       const activity = { name, type, details, duration, materials };
-      targetSlot.activities.push(activity);
-
       status.textContent = 'Enregistrement de l’activité en cours...';
       persistActivity({
         name,
@@ -385,18 +529,66 @@
         format: type,
         details,
         duration,
-        materials
+        materials,
+        courseId: currentCourseId
+      }).then((success) => {
+        if (success) {
+          targetSlot.activities.push(activity);
+          renderSchedule();
+          form.reset();
+          document.getElementById('duration').value = 60;
+          document.getElementById('week-select').value = weekIndex + 1;
+          document.getElementById('slot-select').value = slotIndex;
+        }
       });
+    });
 
-      renderSchedule();
-      form.reset();
-      document.getElementById('duration').value = 60;
-      document.getElementById('week-select').value = weekIndex + 1;
-      document.getElementById('slot-select').value = slotIndex;
+    courseForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      courseStatus.textContent = 'Création du cours...';
+
+      try {
+        const payload = {
+          teacher: document.getElementById('course-teacher').value.trim(),
+          className: document.getElementById('course-class').value.trim(),
+          room: document.getElementById('course-room').value.trim(),
+          moduleNumber: document.getElementById('course-number').value.trim(),
+          moduleName: document.getElementById('course-name').value.trim()
+        };
+
+        const response = await fetch('/api/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Création impossible');
+        }
+
+        courseForm.reset();
+        courseStatus.textContent = 'Cours créé avec succès !';
+        await loadCourses();
+      } catch (error) {
+        courseStatus.textContent = `⚠️ ${error.message}`;
+      }
+    });
+
+    courseSelect.addEventListener('change', async (event) => {
+      currentCourseId = Number(event.target.value);
+      await loadActivitiesForCourse(currentCourseId);
+    });
+
+    reloadActivitiesBtn.addEventListener('click', () => {
+      if (currentCourseId) {
+        loadActivitiesForCourse(currentCourseId);
+      }
     });
 
     refreshDbStatus();
     renderSchedule();
+    loadCourses();
   </script>
 </body>
 </html>
