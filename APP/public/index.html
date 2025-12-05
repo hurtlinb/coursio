@@ -51,6 +51,10 @@
             <span aria-hidden="true">+</span>
             <span class="sr-only">Créer un nouveau cours</span>
           </button>
+          <button class="icon-button icon-button--danger" id="delete-course" type="button">
+            <span aria-hidden="true">🗑️</span>
+            <span class="sr-only">Supprimer le cours sélectionné</span>
+          </button>
         </div>
       </div>
 
@@ -272,8 +276,7 @@
     const courseModal = document.getElementById('course-modal');
     const courseSelect = document.getElementById('course-select');
     const courseStatus = document.getElementById('course-status');
-    const courseStartDateInput = document.getElementById('course-start-date');
-    const courseStartSlotSelect = document.getElementById('course-start-slot');
+    const deleteCourseBtn = document.getElementById('delete-course');
     const dbStatus = document.getElementById('db-status');
     const dbStatusDot = document.getElementById('db-status-dot');
     const dbStatusText = document.getElementById('db-status-text');
@@ -281,8 +284,7 @@
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openActivityModalBtn = document.getElementById('open-activity-modal');
     const openCourseModalBtn = document.getElementById('open-course-modal');
-    const weekSelect = document.getElementById('week-select');
-    const slotSelect = document.getElementById('slot-select');
+    let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
@@ -378,17 +380,21 @@
     }
 
     function fillCourseSelect(courses) {
+      coursesCache = courses;
       courseSelect.innerHTML = '';
 
       courses.forEach((course) => {
         const option = document.createElement('option');
         option.value = course.id;
         option.textContent = `${course.moduleNumber} — ${course.moduleName}`;
+        option.dataset.moduleNumber = course.moduleNumber;
         courseSelect.appendChild(option);
       });
 
-      if (!currentCourseId && courses.length > 0) {
-        currentCourseId = courses[0].id;
+      const hasCurrentSelection = courses.some((course) => course.id === currentCourseId);
+
+      if (!hasCurrentSelection) {
+        currentCourseId = courses[0]?.id ?? null;
       }
 
       if (currentCourseId) {
@@ -410,8 +416,8 @@
 
         if (courses.length === 0) {
           courseStatus.textContent = 'Aucun cours disponible pour le moment.';
-          courseHalfDays = [];
-          schedule = buildSchedule();
+          currentCourseId = null;
+          schedule = createEmptySchedule();
           renderSchedule();
           refreshSlotSelectOptions();
           return;
@@ -422,6 +428,62 @@
         await loadActivitiesForCourse(currentCourseId);
       } catch (error) {
         courseStatus.textContent = 'Impossible de charger les cours.';
+      }
+    }
+
+    function getCurrentCourse() {
+      return coursesCache.find((course) => course.id === currentCourseId) || null;
+    }
+
+    async function deleteCurrentCourse() {
+      if (!currentCourseId) {
+        courseStatus.textContent = 'Sélectionnez d’abord un cours à supprimer.';
+        return;
+      }
+
+      const course = getCurrentCourse();
+      if (!course) {
+        courseStatus.textContent = 'Cours introuvable dans la sélection.';
+        return;
+      }
+
+      const confirmationMessage =
+        `Pour supprimer le cours ${course.moduleNumber} (${course.moduleName}), saisissez son numéro de module. ` +
+        'Cette action supprimera aussi tous les demi-jours et activités associés.';
+
+      const userInput = window.prompt(confirmationMessage);
+
+      if (userInput === null) {
+        courseStatus.textContent = 'Suppression annulée.';
+        return;
+      }
+
+      const moduleNumberInput = userInput.trim();
+
+      if (moduleNumberInput !== course.moduleNumber) {
+        courseStatus.textContent = 'Le numéro saisi ne correspond pas au cours sélectionné.';
+        return;
+      }
+
+      courseStatus.textContent = 'Suppression du cours en cours...';
+
+      try {
+        const response = await fetch(`/api/courses/${course.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moduleNumber: moduleNumberInput })
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Impossible de supprimer le cours.');
+        }
+
+        currentCourseId = null;
+        courseStatus.textContent = 'Cours supprimé.';
+        await loadCourses();
+      } catch (error) {
+        courseStatus.textContent = `⚠️ ${error.message}`;
       }
     }
 
@@ -694,6 +756,7 @@
       closeActivityModalBtn.addEventListener('click', closeActivityModal);
       activityModalBackdrop.addEventListener('click', closeActivityModal);
       openCourseModalBtn.addEventListener('click', openCourseModal);
+      deleteCourseBtn.addEventListener('click', deleteCurrentCourse);
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
       weekSelect.addEventListener('change', refreshSlotSelectOptions);
