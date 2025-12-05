@@ -399,7 +399,8 @@ h1 {
   grid-column: 1 / -1;
 }
 
-.course-modal {
+.course-modal,
+.activity-modal {
   position: fixed;
   inset: 0;
   display: flex;
@@ -408,18 +409,21 @@ h1 {
   z-index: 10;
 }
 
-.course-modal[hidden] {
+.course-modal[hidden],
+.activity-modal[hidden] {
   display: none;
 }
 
-.course-modal__backdrop {
+.course-modal__backdrop,
+.activity-modal__backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
 }
 
-.course-modal__content {
+.course-modal__content,
+.activity-modal__content {
   position: relative;
   width: min(640px, 92vw);
   background: #0e1427;
@@ -433,7 +437,8 @@ h1 {
   z-index: 1;
 }
 
-.course-modal__header {
+.course-modal__header,
+.activity-modal__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
