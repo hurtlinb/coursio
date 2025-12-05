@@ -632,6 +632,30 @@ h1 {
   gap: 8px;
 }
 
+.activity__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  width: 96px;
+  flex-shrink: 0;
+}
+
+.activity__duration-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--accent-2);
+}
+
+.activity__duration-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .activity__title-button {
   font-weight: 700;
   background: none;
