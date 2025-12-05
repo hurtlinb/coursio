@@ -594,15 +594,19 @@ h1 {
   gap: 8px;
 }
 
-.activity__title {
+.activity__title-button {
   font-weight: 700;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
-.activity__edit-btn {
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
-  border-radius: 8px;
+.activity__title-button:hover,
+.activity__title-button:focus-visible {
+  text-decoration: underline;
 }
 
 .activity__type {

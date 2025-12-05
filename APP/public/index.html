@@ -575,22 +575,18 @@
       const titleRow = document.createElement('div');
       titleRow.className = 'activity__title-row';
 
-      const title = document.createElement('span');
-      title.className = 'activity__title';
+      const title = document.createElement('button');
+      title.type = 'button';
+      title.className = 'activity__title activity__title-button';
       title.textContent = activity.name;
-
-      const editButton = document.createElement('button');
-      editButton.type = 'button';
-      editButton.className = 'icon-button icon-button--ghost activity__edit-btn';
-      editButton.title = "Modifier l'activité";
-      editButton.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
-      editButton.addEventListener('click', (event) => {
+      title.title = `Modifier l'activité ${activity.name}`;
+      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
+      title.addEventListener('click', (event) => {
         event.stopPropagation();
         event.preventDefault();
         openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
       });
       titleRow.appendChild(title);
-      titleRow.appendChild(editButton);
 
       const type = document.createElement('span');
       type.className = 'activity__type';
