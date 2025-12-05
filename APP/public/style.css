@@ -216,6 +216,13 @@ h1 {
   gap: 12px;
 }
 
+.planner__session {
+  margin-left: auto;
+  align-self: flex-start;
+  justify-content: flex-end;
+  text-align: right;
+}
+
 .planner__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
