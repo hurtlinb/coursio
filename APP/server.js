@@ -123,6 +123,13 @@ async function ensureSchema() {
     );
   }
 
+  const [courseIdIndexes] = await pool.query("SHOW INDEX FROM half_days WHERE Column_name = 'course_id'");
+  const hasDedicatedCourseIndex = courseIdIndexes.some((index) => index.Key_name !== 'uq_half_days');
+
+  if (!hasDedicatedCourseIndex) {
+    await pool.query('ALTER TABLE half_days ADD INDEX idx_half_days_course_id (course_id)');
+  }
+
   const [halfDayIndexes] = await pool.query("SHOW INDEX FROM half_days WHERE Key_name = 'uq_half_days'");
   const hasExpectedIndex = halfDayIndexes.length === 3 && new Set(halfDayIndexes.map((index) => index.Column_name)).has('week_number');
 
