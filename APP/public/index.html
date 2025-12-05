@@ -755,8 +755,8 @@
       const header = document.createElement('div');
       header.className = 'activity__header';
 
-      const titleRow = document.createElement('div');
-      titleRow.className = 'activity__title-row';
+      const metaColumn = document.createElement('div');
+      metaColumn.className = 'activity__meta';
 
       const duration = document.createElement('div');
       duration.className = 'activity__duration';
@@ -774,20 +774,6 @@
       duration.appendChild(durationIcon);
       duration.appendChild(durationText);
 
-      const title = document.createElement('button');
-      title.type = 'button';
-      title.className = 'activity__title activity__title-button';
-      title.textContent = activity.name;
-      title.title = `Modifier l'activité ${activity.name}`;
-      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
-      title.addEventListener('click', (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
-      });
-      titleRow.appendChild(duration);
-      titleRow.appendChild(title);
-
       const type = document.createElement('span');
       type.className = 'activity__type';
       type.title = supportedFormats[activity.type] || activity.type;
@@ -804,8 +790,27 @@
       type.appendChild(typeIcon);
       type.appendChild(typeLabel);
 
+      metaColumn.appendChild(duration);
+      metaColumn.appendChild(type);
+
+      const title = document.createElement('button');
+      title.type = 'button';
+      title.className = 'activity__title activity__title-button';
+      title.textContent = activity.name;
+      title.title = `Modifier l'activité ${activity.name}`;
+      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
+      title.addEventListener('click', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
+      });
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'activity__title-row';
+      titleRow.appendChild(title);
+
+      header.appendChild(metaColumn);
       header.appendChild(titleRow);
-      header.appendChild(type);
 
       activityEl.appendChild(header);
 

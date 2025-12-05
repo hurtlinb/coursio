@@ -622,19 +622,28 @@ h1 {
 
 .activity__header {
   display: flex;
-  justify-content: space-between;
   gap: 10px;
+  align-items: flex-start;
 }
 
 .activity__title-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
 
 .activity {
   --activity-duration-width: 96px;
   --activity-duration-gap: 8px;
+}
+
+.activity__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: var(--activity-duration-width);
+  flex-shrink: 0;
 }
 
 .activity__duration {
@@ -644,8 +653,6 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-  width: var(--activity-duration-width);
-  flex-shrink: 0;
 }
 
 .activity__duration-icon {
