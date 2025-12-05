@@ -95,15 +95,30 @@
 
         <label class="form-field">
           <span>Format</span>
-          <select id="type-select">
-            <option value="presentation">Présentation</option>
-            <option value="exercice">Exercice</option>
-            <option value="travail_de_groupe">Travail de groupe</option>
-            <option value="jeu">Jeu</option>
-            <option value="recherche_information">Recherche d'information</option>
-            <option value="synthese">Synthèse</option>
-            <option value="evaluation">Évaluation</option>
-          </select>
+          <input type="hidden" id="type-select" value="presentation">
+          <div class="format-selector" id="format-selector" role="group" aria-label="Choisir un format">
+            <button class="format-chip is-selected" type="button" data-format="presentation" title="Présentation" aria-label="Présentation" aria-pressed="true">
+              <span class="format-chip__icon" aria-hidden="true">📢</span>
+            </button>
+            <button class="format-chip" type="button" data-format="exercice" title="Exercice" aria-label="Exercice" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🧠</span>
+            </button>
+            <button class="format-chip" type="button" data-format="travail_de_groupe" title="Travail de groupe" aria-label="Travail de groupe" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🤝</span>
+            </button>
+            <button class="format-chip" type="button" data-format="jeu" title="Jeu" aria-label="Jeu" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🎲</span>
+            </button>
+            <button class="format-chip" type="button" data-format="recherche_information" title="Recherche d'information" aria-label="Recherche d'information" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">🔎</span>
+            </button>
+            <button class="format-chip" type="button" data-format="synthese" title="Synthèse" aria-label="Synthèse" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">📝</span>
+            </button>
+            <button class="format-chip" type="button" data-format="evaluation" title="Évaluation" aria-label="Évaluation" aria-pressed="false">
+              <span class="format-chip__icon" aria-hidden="true">✅</span>
+            </button>
+          </div>
         </label>
 
         <label class="form-field">
@@ -241,6 +256,8 @@
     const activityModal = document.getElementById('activity-modal');
     const activityModalBackdrop = document.querySelector('[data-close-activity-modal]');
     const activityStatus = document.getElementById('activity-status');
+    const formatSelector = document.getElementById('format-selector');
+    const formatInput = document.getElementById('type-select');
     const closeActivityModalBtn = document.getElementById('close-activity-modal');
     const activityModalTitle = document.getElementById('activity-modal-title');
     const activitySubmitBtn = activityForm.querySelector('.btn-primary');
@@ -891,6 +908,7 @@
       await loadActivitiesForCourse(currentCourseId);
     });
 
+    initializeFormatSelector();
     renderSchedule();
     refreshSlotSelectOptions();
     loadCourses();
