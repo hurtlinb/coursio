@@ -394,6 +394,16 @@ h1 {
   font: inherit;
 }
 
+#course-select {
+  background: var(--card);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#course-select option {
+  background: var(--card);
+  color: var(--text);
+}
+
 .form-field textarea {
   resize: vertical;
 }

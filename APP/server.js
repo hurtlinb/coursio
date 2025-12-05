@@ -15,10 +15,6 @@ const supportedFormats = new Set([
   'evaluation'
 ]);
 const slotToPeriod = ['matin', 'apres_midi'];
-const periodToSlot = new Map([
-  ['matin', 0],
-  ['apres_midi', 1]
-]);
 
 function loadDbConfig() {
   const configPath = process.env.DB_CONFIG_PATH || path.join(__dirname, 'db.config.json');
@@ -70,8 +66,126 @@ const defaultCourse = {
   className: process.env.DEFAULT_CLASS || 'Démonstration',
   room: process.env.DEFAULT_ROOM || 'En ligne',
   moduleNumber: process.env.DEFAULT_MODULE_NUMBER || 'DEMO-001',
-  moduleName: process.env.DEFAULT_MODULE_NAME || 'Atelier de planification'
+  moduleName: process.env.DEFAULT_MODULE_NAME || 'Atelier de planification',
+  startDate: process.env.DEFAULT_START_DATE || new Date().toISOString().slice(0, 10),
+  startPeriod: process.env.DEFAULT_START_PERIOD || 'matin'
 };
+
+function isValidDateString(value) {
+  if (typeof value !== 'string') return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && value === date.toISOString().slice(0, 10);
+}
+
+function computeHalfDaySession(startDate, startSlotIndex, weekNumber, slotIndex) {
+  const baseDate = new Date(startDate);
+  baseDate.setHours(0, 0, 0, 0);
+  baseDate.setDate(baseDate.getDate() + (weekNumber - 1) * 7);
+
+  const slotOffset = startSlotIndex + slotIndex;
+  const dayOffset = Math.floor(slotOffset / 2);
+  const period = slotToPeriod[slotOffset % 2];
+
+  const sessionDate = new Date(baseDate);
+  sessionDate.setDate(baseDate.getDate() + dayOffset);
+
+  return {
+    sessionDate: sessionDate.toISOString().slice(0, 10),
+    period
+  };
+}
+
+function buildExpectedHalfDays(startDate, startSlotIndex) {
+  const halfDays = [];
+
+  for (let week = 1; week <= 5; week += 1) {
+    for (let slot = 0; slot < 3; slot += 1) {
+      const { sessionDate, period } = computeHalfDaySession(startDate, startSlotIndex, week, slot);
+      halfDays.push({
+        weekNumber: week,
+        slotIndex: slot,
+        sessionDate,
+        period
+      });
+    }
+  }
+
+  return halfDays;
+}
+
+async function getCourse(courseId) {
+  const [rows] = await pool.query(
+    `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
+            start_date AS startDate, start_period AS startPeriod
+     FROM courses
+     WHERE id = ?
+     LIMIT 1`,
+    [courseId]
+  );
+
+  return rows[0] || null;
+}
+
+async function ensureHalfDaysForCourse(courseId) {
+  const course = await getCourse(courseId);
+  if (!course || !course.startDate || !course.startPeriod) {
+    return [];
+  }
+
+  const startSlotIndex = slotToPeriod.indexOf(course.startPeriod);
+  if (startSlotIndex === -1) {
+    return [];
+  }
+  const expectedHalfDays = buildExpectedHalfDays(course.startDate, startSlotIndex);
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    for (const halfDay of expectedHalfDays) {
+      await connection.query(
+        `INSERT INTO half_days (course_id, week_number, slot_index, session_date, period)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE session_date = VALUES(session_date), period = VALUES(period)`,
+        [courseId, halfDay.weekNumber, halfDay.slotIndex, halfDay.sessionDate, halfDay.period]
+      );
+    }
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  return expectedHalfDays;
+}
+
+async function getHalfDayForCourse(courseId, weekNumber, slotIndex) {
+  const halfDays = await ensureHalfDaysForCourse(courseId);
+  const matchingHalfDay = halfDays.find(
+    (halfDay) => halfDay.weekNumber === weekNumber && halfDay.slotIndex === slotIndex
+  );
+
+  if (!matchingHalfDay) {
+    return null;
+  }
+
+  const [rows] = await pool.query(
+    `SELECT id, session_date AS sessionDate, period
+     FROM half_days
+     WHERE course_id = ? AND week_number = ? AND slot_index = ?
+     LIMIT 1`,
+    [courseId, weekNumber, slotIndex]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return { ...matchingHalfDay, id: rows[0].id };
+}
 
 async function ensureSchema() {
   await pool.query(`
@@ -82,6 +196,8 @@ async function ensureSchema() {
       room VARCHAR(100) NOT NULL,
       module_number VARCHAR(50) NOT NULL,
       module_name VARCHAR(255) NOT NULL,
+      start_date DATE NOT NULL,
+      start_period ENUM('matin', 'apres_midi') NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
@@ -91,12 +207,13 @@ async function ensureSchema() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       course_id INT NOT NULL,
       week_number TINYINT UNSIGNED NOT NULL,
+      slot_index TINYINT UNSIGNED NOT NULL,
       session_date DATE NOT NULL,
       period ENUM('matin', 'apres_midi') NOT NULL,
       notes TEXT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_half_days_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-      CONSTRAINT uq_half_days UNIQUE (course_id, week_number, period)
+      CONSTRAINT uq_half_days UNIQUE (course_id, week_number, slot_index)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
@@ -116,10 +233,25 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
-  const [weekNumberColumn] = await pool.query("SHOW COLUMNS FROM half_days LIKE 'week_number'");
-  if (weekNumberColumn.length === 0) {
+  const [startDateColumn] = await pool.query("SHOW COLUMNS FROM courses LIKE 'start_date'");
+  if (startDateColumn.length === 0) {
+    await pool.query("ALTER TABLE courses ADD COLUMN start_date DATE NOT NULL DEFAULT (CURRENT_DATE()) AFTER module_name");
+  }
+
+  const [startPeriodColumn] = await pool.query("SHOW COLUMNS FROM courses LIKE 'start_period'");
+  if (startPeriodColumn.length === 0) {
     await pool.query(
-      "ALTER TABLE half_days ADD COLUMN week_number TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER course_id"
+      "ALTER TABLE courses ADD COLUMN start_period ENUM('matin', 'apres_midi') NOT NULL DEFAULT 'matin' AFTER start_date"
+    );
+  }
+
+  const [slotIndexColumn] = await pool.query("SHOW COLUMNS FROM half_days LIKE 'slot_index'");
+  if (slotIndexColumn.length === 0) {
+    await pool.query(
+      "ALTER TABLE half_days ADD COLUMN slot_index TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER week_number"
+    );
+    await pool.query(
+      "UPDATE half_days SET slot_index = CASE WHEN period = 'matin' THEN 0 ELSE 1 END"
     );
   }
 
@@ -131,14 +263,15 @@ async function ensureSchema() {
   }
 
   const [halfDayIndexes] = await pool.query("SHOW INDEX FROM half_days WHERE Key_name = 'uq_half_days'");
-  const hasExpectedIndex = halfDayIndexes.length === 3 && new Set(halfDayIndexes.map((index) => index.Column_name)).has('week_number');
+  const hasExpectedIndex =
+    halfDayIndexes.length === 3 && new Set(halfDayIndexes.map((index) => index.Column_name)).has('slot_index');
 
   if (!hasExpectedIndex) {
     if (halfDayIndexes.length > 0) {
       await pool.query('ALTER TABLE half_days DROP INDEX uq_half_days');
     }
 
-    await pool.query('ALTER TABLE half_days ADD UNIQUE INDEX uq_half_days (course_id, week_number, period)');
+    await pool.query('ALTER TABLE half_days ADD UNIQUE INDEX uq_half_days (course_id, week_number, slot_index)');
   }
 }
 
@@ -149,44 +282,25 @@ async function ensureDefaultCourse() {
   );
 
   if (existing.length > 0) {
+    await ensureHalfDaysForCourse(existing[0].id);
     return existing[0].id;
   }
 
   const [result] = await pool.query(
-    `INSERT INTO courses (teacher, class, room, module_number, module_name)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO courses (teacher, class, room, module_number, module_name, start_date, start_period)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       defaultCourse.teacher,
       defaultCourse.className,
       defaultCourse.room,
       defaultCourse.moduleNumber,
-      defaultCourse.moduleName
+      defaultCourse.moduleName,
+      defaultCourse.startDate,
+      defaultCourse.startPeriod
     ]
   );
 
-  return result.insertId;
-}
-
-function computeSessionDate(weekNumber) {
-  const week = Number(weekNumber);
-  const today = new Date();
-  const day = today.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(today);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() + mondayOffset);
-  const sessionDate = new Date(monday);
-  sessionDate.setDate(monday.getDate() + (week - 1) * 7);
-  return sessionDate.toISOString().slice(0, 10);
-}
-
-async function getHalfDayId(courseId, weekNumber, sessionDate, period) {
-  const [result] = await pool.query(
-    `INSERT INTO half_days (course_id, week_number, session_date, period)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
-    [courseId, weekNumber, sessionDate, period]
-  );
+  await ensureHalfDaysForCourse(result.insertId);
 
   return result.insertId;
 }
@@ -218,7 +332,8 @@ app.get('/api/courses', async (_req, res) => {
     await ensureDefaultCourse();
 
     const [rows] = await pool.query(
-      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName, created_at AS createdAt
+      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
+              start_date AS startDate, start_period AS startPeriod, created_at AS createdAt
        FROM courses
        ORDER BY created_at DESC`
     );
@@ -232,17 +347,38 @@ app.get('/api/courses', async (_req, res) => {
 
 app.post('/api/courses', async (req, res) => {
   try {
-    const { teacher, className, room, moduleNumber, moduleName } = req.body;
+    const { teacher, className, room, moduleNumber, moduleName, startDate, startSlot } = req.body;
 
     if (!teacher || !className || !room || !moduleNumber || !moduleName) {
       return res.status(400).json({ error: 'Tous les champs du cours sont requis.' });
     }
 
+    if (!isValidDateString(startDate)) {
+      return res.status(400).json({ error: 'La date de début est invalide.' });
+    }
+
+    const startSlotIndex = Number(startSlot);
+    const startPeriod = slotToPeriod[startSlotIndex];
+
+    if (!startPeriod) {
+      return res.status(400).json({ error: 'La demi-journée de début est invalide.' });
+    }
+
     const [result] = await pool.query(
-      `INSERT INTO courses (teacher, class, room, module_number, module_name)
-       VALUES (?, ?, ?, ?, ?)` ,
-      [teacher.trim(), className.trim(), room.trim(), moduleNumber.trim(), moduleName.trim()]
+      `INSERT INTO courses (teacher, class, room, module_number, module_name, start_date, start_period)
+       VALUES (?, ?, ?, ?, ?, ?, ?)` ,
+      [
+        teacher.trim(),
+        className.trim(),
+        room.trim(),
+        moduleNumber.trim(),
+        moduleName.trim(),
+        startDate,
+        startPeriod
+      ]
     );
+
+    await ensureHalfDaysForCourse(result.insertId);
 
     res.status(201).json({ id: result.insertId });
   } catch (error) {
@@ -308,11 +444,11 @@ app.get('/api/courses/:courseId/activities', async (req, res) => {
               a.format,
               a.materials,
               h.week_number AS weekNumber,
-              h.period
+              h.slot_index AS slotIndex
        FROM activities a
        INNER JOIN half_days h ON a.half_day_id = h.id
        WHERE h.course_id = ?
-       ORDER BY h.week_number, h.period, a.position IS NULL, a.position, a.id`,
+       ORDER BY h.week_number, h.slot_index, a.position IS NULL, a.position, a.id`,
       [courseId]
     );
 
@@ -320,7 +456,7 @@ app.get('/api/courses/:courseId/activities', async (req, res) => {
       id: row.id,
       name: row.name,
       week: row.weekNumber,
-      slot: periodToSlot.get(row.period),
+      slot: row.slotIndex,
       type: row.format,
       details: row.description,
       duration: row.duration,
@@ -331,6 +467,43 @@ app.get('/api/courses/:courseId/activities', async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la récupération des activités :', error.message);
     res.status(500).json({ error: 'Impossible de récupérer les activités pour le moment.' });
+  }
+});
+
+app.get('/api/courses/:courseId/half-days', async (req, res) => {
+  try {
+    const courseId = Number(req.params.courseId);
+
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      return res.status(400).json({ error: 'Identifiant de cours invalide.' });
+    }
+
+    const course = await getCourse(courseId);
+    if (!course) {
+      return res.status(404).json({ error: 'Cours introuvable.' });
+    }
+
+    await ensureHalfDaysForCourse(courseId);
+
+    const [halfDays] = await pool.query(
+      `SELECT id, week_number AS weekNumber, slot_index AS slotIndex, session_date AS sessionDate, period
+       FROM half_days
+       WHERE course_id = ?
+       ORDER BY week_number, slot_index`,
+      [courseId]
+    );
+
+    res.json({
+      course: {
+        id: course.id,
+        startDate: course.startDate,
+        startPeriod: course.startPeriod
+      },
+      halfDays
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des demi-jours :', error.message);
+    res.status(500).json({ error: 'Impossible de récupérer les demi-jours pour ce cours.' });
   }
 });
 
@@ -358,8 +531,7 @@ app.post('/api/activities', async (req, res) => {
     }
 
     const slotIndex = Number(slot);
-    const period = slotToPeriod[slotIndex];
-    if (!period) {
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) {
       return res.status(400).json({ error: 'Le créneau est invalide.' });
     }
 
@@ -377,20 +549,22 @@ app.post('/api/activities', async (req, res) => {
     const description = (details || '').trim() || 'Description à compléter';
     const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() : null;
 
-    const sessionDate = computeSessionDate(weekNumber);
-    const halfDayId = await getHalfDayId(selectedCourseId, weekNumber, sessionDate, period);
+    const halfDay = await getHalfDayForCourse(selectedCourseId, weekNumber, slotIndex);
+    if (!halfDay) {
+      return res.status(500).json({ error: 'Impossible de déterminer le demi-jour cible.' });
+    }
 
     const [result] = await pool.query(
       `INSERT INTO activities (half_day_id, specific_objective, description, duration_minutes, format, materials)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [halfDayId, objective, description, durationMinutes, normalizedFormat, sanitizedMaterials]
+      [halfDay.id, objective, description, durationMinutes, normalizedFormat, sanitizedMaterials]
     );
 
     res.status(201).json({
       activityId: result.insertId,
-      halfDayId,
-      sessionDate,
-      period
+      halfDayId: halfDay.id,
+      sessionDate: halfDay.sessionDate,
+      period: halfDay.period
     });
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de l’activité :', error.message);
@@ -432,32 +606,33 @@ app.patch('/api/activities/:activityId/move', async (req, res) => {
     }
 
     const slotIndex = Number(slot);
-    const period = slotToPeriod[slotIndex];
-    if (!period) {
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) {
       return res.status(400).json({ error: 'Le créneau est invalide.' });
     }
 
-    const sessionDate = computeSessionDate(weekNumber);
-    const halfDayId = await getHalfDayId(activityCourseId, weekNumber, sessionDate, period);
+    const halfDay = await getHalfDayForCourse(activityCourseId, weekNumber, slotIndex);
+    if (!halfDay) {
+      return res.status(500).json({ error: "Impossible de déterminer le nouveau demi-jour." });
+    }
 
     const connection = await pool.getConnection();
     try {
-      await connection.beginTransaction();
+        await connection.beginTransaction();
 
-      const [positions] = await connection.query(
-        'SELECT COALESCE(MAX(position), 0) AS maxPosition FROM activities WHERE half_day_id = ?',
-        [halfDayId]
-      );
+        const [positions] = await connection.query(
+          'SELECT COALESCE(MAX(position), 0) AS maxPosition FROM activities WHERE half_day_id = ?',
+          [halfDay.id]
+        );
       const nextPosition = Number(positions[0].maxPosition) + 1;
 
       await connection.query(
         'UPDATE activities SET half_day_id = ?, position = ? WHERE id = ?',
-        [halfDayId, nextPosition, activityId]
+        [halfDay.id, nextPosition, activityId]
       );
 
       await connection.commit();
 
-      res.json({ success: true, halfDayId, position: nextPosition });
+      res.json({ success: true, halfDayId: halfDay.id, position: nextPosition });
     } catch (error) {
       await connection.rollback();
       console.error("Erreur lors du déplacement de l'activité :", error.message);
