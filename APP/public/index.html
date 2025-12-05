@@ -37,23 +37,6 @@
         </div>
       </div>
 
-      <div class="course-toolbar" aria-label="Sélection des cours">
-        <div>
-          <p class="label">Cours</p>
-          <p class="muted">Choisissez un cours pour gérer les activités, ou créez-en un nouveau.</p>
-        </div>
-        <div class="course-toolbar__actions">
-          <label class="form-field form-field--inline">
-            <span>Cours disponibles</span>
-            <select id="course-select"></select>
-          </label>
-          <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
-            <span aria-hidden="true">+</span>
-            <span class="sr-only">Créer un nouveau cours</span>
-          </button>
-        </div>
-      </div>
-
         <div class="planner__grid">
           <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
             <div class="timeline__header">
@@ -774,8 +757,10 @@
           throw new Error(error.error || 'Création impossible');
         }
 
+        const createdCourse = await response.json();
         courseForm.reset();
         courseStatus.textContent = 'Cours créé avec succès !';
+        currentCourseId = createdCourse.id;
         await loadCourses();
         closeCourseModal();
       } catch (error) {
