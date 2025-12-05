@@ -20,58 +20,25 @@
         </div>
       </div>
 
+      <div class="course-toolbar" aria-label="Sélection des cours">
+        <div>
+          <p class="label">Cours</p>
+          <p class="muted">Choisissez un cours pour gérer les activités, ou créez-en un nouveau.</p>
+        </div>
+        <div class="course-toolbar__actions">
+          <label class="form-field form-field--inline">
+            <span>Cours disponibles</span>
+            <select id="course-select"></select>
+          </label>
+          <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
+          <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
+            <span aria-hidden="true">+</span>
+            <span class="sr-only">Créer un nouveau cours</span>
+          </button>
+        </div>
+      </div>
+
         <div class="planner__grid">
-          <div class="course-panel">
-            <div class="course-panel__header">
-              <div>
-                <p class="label">Cours</p>
-                <p class="muted">Sélectionnez un cours existant ou créez-en un nouveau.</p>
-              </div>
-              <div class="course-panel__select">
-                <label class="form-field">
-                  <span>Cours disponibles</span>
-                  <select id="course-select"></select>
-                </label>
-                <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
-                <button class="icon-button" id="toggle-course-form" type="button" aria-expanded="false" aria-controls="course-form">
-                  <span aria-hidden="true">+</span>
-                  <span class="sr-only">Créer un cours</span>
-                </button>
-              </div>
-            </div>
-
-            <form class="course-form is-hidden" id="course-form" hidden>
-              <div class="form-row">
-                <label class="form-field">
-                  <span>Enseignant</span>
-                  <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
-                </label>
-                <label class="form-field">
-                  <span>Classe</span>
-                  <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="form-field">
-                  <span>Salle</span>
-                  <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
-                </label>
-                <label class="form-field">
-                  <span>Module</span>
-                  <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
-                </label>
-              </div>
-              <label class="form-field">
-                <span>Titre du module</span>
-                <input type="text" id="course-name" placeholder="Nom du module" required>
-              </label>
-              <div class="course-form__actions">
-                <button class="btn btn-primary" type="submit">Créer le cours</button>
-                <p class="muted" id="course-status" aria-live="polite"></p>
-              </div>
-            </form>
-          </div>
-
           <div class="panel-card">
             <div class="panel-card__header">
               <div>
@@ -162,6 +129,50 @@
 
   </main>
 
+  <div class="course-modal is-hidden" id="course-modal" role="dialog" aria-modal="true" aria-labelledby="course-modal-title" hidden>
+    <div class="course-modal__backdrop" data-close-course-modal></div>
+    <div class="course-modal__content">
+      <div class="course-modal__header">
+        <div>
+          <p class="label" id="course-modal-title">Nouveau cours</p>
+          <p class="muted">Renseignez les informations principales pour le créer.</p>
+        </div>
+        <button class="icon-button icon-button--ghost" id="close-course-modal" type="button" aria-label="Fermer le formulaire">×</button>
+      </div>
+
+      <form class="course-form" id="course-form">
+        <div class="form-row">
+          <label class="form-field">
+            <span>Enseignant</span>
+            <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
+          </label>
+          <label class="form-field">
+            <span>Classe</span>
+            <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label class="form-field">
+            <span>Salle</span>
+            <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
+          </label>
+          <label class="form-field">
+            <span>Module</span>
+            <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
+          </label>
+        </div>
+        <label class="form-field">
+          <span>Titre du module</span>
+          <input type="text" id="course-name" placeholder="Nom du module" required>
+        </label>
+        <div class="course-form__actions">
+          <button class="btn btn-primary" type="submit">Créer le cours</button>
+          <p class="muted" id="course-status" aria-live="polite"></p>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <footer class="footer">
     <p>Créé pour vous par l'équipe Coursio.</p>
     <div class="connection-status" id="db-status" aria-live="polite">
@@ -193,19 +204,22 @@
     let schedule = createEmptySchedule();
 
     const timeline = document.getElementById('timeline');
-    const form = document.getElementById('activity-form');
-    const courseForm = document.getElementById('course-form');
-    const courseSelect = document.getElementById('course-select');
-    const courseStatus = document.getElementById('course-status');
-    const dbStatus = document.getElementById('db-status');
-    const dbStatusDot = document.getElementById('db-status-dot');
-    const dbStatusText = document.getElementById('db-status-text');
-    const reloadActivitiesBtn = document.getElementById('reload-activities');
-    const toggleActivityFormBtn = document.getElementById('toggle-activity-form');
-    const toggleCourseFormBtn = document.getElementById('toggle-course-form');
-    let draggedActivity = null;
-    let dropHandled = false;
-    let currentCourseId = null;
+      const form = document.getElementById('activity-form');
+      const courseForm = document.getElementById('course-form');
+      const courseModal = document.getElementById('course-modal');
+      const courseSelect = document.getElementById('course-select');
+      const courseStatus = document.getElementById('course-status');
+      const dbStatus = document.getElementById('db-status');
+      const dbStatusDot = document.getElementById('db-status-dot');
+      const dbStatusText = document.getElementById('db-status-text');
+      const closeCourseModalBtn = document.getElementById('close-course-modal');
+      const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
+      const reloadActivitiesBtn = document.getElementById('reload-activities');
+      const toggleActivityFormBtn = document.getElementById('toggle-activity-form');
+      const openCourseModalBtn = document.getElementById('open-course-modal');
+      let draggedActivity = null;
+      let dropHandled = false;
+      let currentCourseId = null;
 
       function setDbStatus(state, message) {
         dbStatus.dataset.state = state;
@@ -225,6 +239,19 @@
           panel.classList.add('is-hidden');
           button.setAttribute('aria-expanded', 'false');
         }
+      }
+
+      function openCourseModal() {
+        courseForm.reset();
+        courseStatus.textContent = '';
+        courseModal.removeAttribute('hidden');
+        courseModal.classList.remove('is-hidden');
+        document.getElementById('course-teacher').focus();
+      }
+
+      function closeCourseModal() {
+        courseModal.setAttribute('hidden', '');
+        courseModal.classList.add('is-hidden');
       }
 
     async function refreshDbStatus() {
@@ -551,7 +578,14 @@
       }
 
       toggleActivityFormBtn.addEventListener('click', () => togglePanel(toggleActivityFormBtn, form));
-      toggleCourseFormBtn.addEventListener('click', () => togglePanel(toggleCourseFormBtn, courseForm));
+      openCourseModalBtn.addEventListener('click', openCourseModal);
+      closeCourseModalBtn.addEventListener('click', closeCourseModal);
+      courseModalBackdrop.addEventListener('click', closeCourseModal);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !courseModal.hasAttribute('hidden')) {
+          closeCourseModal();
+        }
+      });
 
       form.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -622,6 +656,7 @@
         courseForm.reset();
         courseStatus.textContent = 'Cours créé avec succès !';
         await loadCourses();
+        closeCourseModal();
       } catch (error) {
         courseStatus.textContent = `⚠️ ${error.message}`;
       }
