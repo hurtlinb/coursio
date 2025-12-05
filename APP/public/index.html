@@ -194,6 +194,11 @@
 
   <footer class="footer"></footer>
 
+  <div class="context-menu is-hidden" id="activity-context-menu" role="menu" aria-hidden="true">
+    <button type="button" class="context-menu__item" data-action="edit">✏️ Modifier</button>
+    <button type="button" class="context-menu__item context-menu__item--danger" data-action="delete">🗑 Supprimer</button>
+  </div>
+
   <script>
     const weeks = 5;
     const supportedFormats = {
@@ -264,10 +269,13 @@
     const openCourseModalBtn = document.getElementById('open-course-modal');
     const slotSelect = document.getElementById('slot-select');
     const weekSelect = document.getElementById('week-select');
+    const activityContextMenu = document.getElementById('activity-context-menu');
     let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
+    let editingActivity = null;
+    let contextActivityTarget = null;
 
       function resetActivityFormDefaults() {
         activityForm.reset();
@@ -277,9 +285,28 @@
         slotSelect.value = 0;
       }
 
-      function openActivityModal() {
+      function openActivityModal(activityToEdit = null) {
         resetActivityFormDefaults();
         activityStatus.textContent = '';
+
+        if (activityToEdit) {
+          editingActivity = activityToEdit;
+          document.getElementById('activity-modal-title').textContent = "Modifier l'activité";
+          document.querySelector('#activity-form .btn-primary').textContent = 'Mettre à jour';
+          document.getElementById('activity-name').value = activityToEdit.name;
+          weekSelect.value = activityToEdit.weekIndex + 1;
+          refreshSlotSelectOptions();
+          slotSelect.value = activityToEdit.slotIndex;
+          document.getElementById('type-select').value = activityToEdit.type;
+          document.getElementById('duration').value = activityToEdit.duration;
+          document.getElementById('details').value = activityToEdit.details || '';
+          document.getElementById('materials').value = activityToEdit.materials || '';
+        } else {
+          editingActivity = null;
+          document.getElementById('activity-modal-title').textContent = 'Nouvelle activité';
+          document.querySelector('#activity-form .btn-primary').textContent = "Ajouter l'activité";
+        }
+
         activityModal.removeAttribute('hidden');
         activityModal.classList.remove('is-hidden');
         document.getElementById('activity-name').focus();
@@ -288,6 +315,9 @@
       function closeActivityModal() {
         activityModal.setAttribute('hidden', '');
         activityModal.classList.add('is-hidden');
+        editingActivity = null;
+        document.getElementById('activity-modal-title').textContent = 'Nouvelle activité';
+        document.querySelector('#activity-form .btn-primary').textContent = "Ajouter l'activité";
       }
 
       function openCourseModal() {
@@ -457,15 +487,6 @@
     function handleDragEnd(event) {
       event.currentTarget.classList.remove('is-dragging');
 
-      if (draggedActivity && !dropHandled) {
-        const shouldDelete = window.confirm("Voulez-vous supprimer cette activité ?");
-        if (shouldDelete) {
-          const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
-          sourceSlot.activities.splice(draggedActivity.index, 1);
-          renderSchedule();
-        }
-      }
-
       draggedActivity = null;
       dropHandled = false;
     }
@@ -549,6 +570,12 @@
 
       activityEl.addEventListener('dragstart', handleDragStart);
       activityEl.addEventListener('dragend', handleDragEnd);
+      activityEl.addEventListener('contextmenu', (event) => handleActivityContextMenu(event, {
+        weekIndex,
+        slotIndex,
+        activityIndex,
+        ...activity
+      }));
 
       return activityEl;
     }
@@ -668,6 +695,122 @@
       }
     }
 
+      async function updateActivityDetails(activityId, payload) {
+        activityStatus.textContent = 'Mise à jour de l’activité...';
+
+        try {
+          const response = await fetch(`/api/activities/${activityId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Mise à jour impossible');
+        }
+
+        activityStatus.textContent = 'Activité mise à jour.';
+        return true;
+      } catch (error) {
+          activityStatus.textContent = `⚠️ ${error.message}`;
+          return false;
+        }
+      }
+
+      function closeContextMenu() {
+        if (activityContextMenu.classList.contains('is-hidden')) return;
+        activityContextMenu.classList.add('is-hidden');
+        activityContextMenu.setAttribute('aria-hidden', 'true');
+        contextActivityTarget = null;
+      }
+
+      function positionContextMenu(event) {
+        const { clientX, clientY } = event;
+        const { innerWidth, innerHeight } = window;
+        const menuWidth = activityContextMenu.offsetWidth || 180;
+        const menuHeight = activityContextMenu.offsetHeight || 120;
+
+        const left = Math.min(clientX, innerWidth - menuWidth - 8);
+        const top = Math.min(clientY, innerHeight - menuHeight - 8);
+
+        activityContextMenu.style.left = `${left}px`;
+        activityContextMenu.style.top = `${top}px`;
+      }
+
+      function handleActivityContextMenu(event, activityInfo) {
+        event.preventDefault();
+        closeContextMenu();
+        contextActivityTarget = activityInfo;
+        positionContextMenu(event);
+        activityContextMenu.classList.remove('is-hidden');
+        activityContextMenu.setAttribute('aria-hidden', 'false');
+      }
+
+      async function deleteActivity(activityInfo) {
+        const slot = schedule[activityInfo.weekIndex].slots[activityInfo.slotIndex];
+        const activity = slot.activities[activityInfo.activityIndex];
+
+        if (!activity) return;
+
+        const confirmed = window.confirm("Supprimer définitivement cette activité ?");
+        if (!confirmed) return;
+
+        try {
+          const response = await fetch(`/api/activities/${activity.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId: currentCourseId })
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Suppression impossible');
+          }
+
+          slot.activities.splice(activityInfo.activityIndex, 1);
+          renderSchedule();
+        } catch (error) {
+          courseStatus.textContent = '⚠️ Impossible de supprimer cette activité.';
+        }
+      }
+
+      function startEditActivity(activityInfo) {
+        const slot = schedule[activityInfo.weekIndex].slots[activityInfo.slotIndex];
+        const activity = slot.activities[activityInfo.activityIndex];
+        if (!activity) return;
+
+        openActivityModal({
+          ...activity,
+          weekIndex: activityInfo.weekIndex,
+          slotIndex: activityInfo.slotIndex,
+          activityIndex: activityInfo.activityIndex
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        if (!activityContextMenu.contains(event.target)) {
+          closeContextMenu();
+        }
+      });
+
+      document.addEventListener('scroll', closeContextMenu, true);
+
+      activityContextMenu.addEventListener('click', (event) => {
+        const action = event.target.dataset.action;
+        if (!action || !contextActivityTarget) return;
+
+        if (action === 'delete') {
+          deleteActivity(contextActivityTarget);
+        }
+
+        if (action === 'edit') {
+          startEditActivity(contextActivityTarget);
+        }
+
+        closeContextMenu();
+      });
+
       async function persistActivity(payload) {
         try {
           const response = await fetch('/api/activities', {
@@ -723,6 +866,7 @@
           if (!activityModal.hasAttribute('hidden')) {
             closeActivityModal();
           }
+          closeContextMenu();
         }
       });
 
@@ -746,6 +890,31 @@
 
       const targetSlot = schedule[weekIndex].slots[slotIndex];
       const activity = { name, type, details, duration, materials };
+
+      if (editingActivity) {
+        updateActivityDetails(editingActivity.id, {
+          name,
+          week: weekIndex + 1,
+          slot: slotIndex,
+          format: type,
+          details,
+          duration,
+          materials,
+          courseId: currentCourseId
+        }).then((updated) => {
+          if (!updated) return;
+
+          const sourceSlot = schedule[editingActivity.weekIndex].slots[editingActivity.slotIndex];
+          const [existingActivity] = sourceSlot.activities.splice(editingActivity.activityIndex, 1);
+          const updatedActivity = { ...existingActivity, ...activity };
+          schedule[weekIndex].slots[slotIndex].activities.push(updatedActivity);
+          renderSchedule();
+          resetActivityFormDefaults();
+          closeActivityModal();
+        });
+        return;
+      }
+
       activityStatus.textContent = 'Enregistrement de l’activité en cours...';
       persistActivity({
         name,
