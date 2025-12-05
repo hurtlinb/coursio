@@ -47,7 +47,6 @@
             <span>Cours disponibles</span>
             <select id="course-select"></select>
           </label>
-          <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
           <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
             <span aria-hidden="true">+</span>
             <span class="sr-only">Créer un nouveau cours</span>
@@ -56,20 +55,6 @@
       </div>
 
         <div class="planner__grid">
-          <div class="panel-card">
-            <div class="panel-card__header">
-              <div>
-                <p class="label">Activités</p>
-                <p class="muted">Cliquez sur le "+" pour ouvrir le masque de saisie.</p>
-              </div>
-              <button class="icon-button" id="open-activity-modal" type="button" aria-haspopup="dialog">
-                <span aria-hidden="true">+</span>
-                <span class="sr-only">Ajouter une activité</span>
-              </button>
-            </div>
-            <p class="muted">Sélectionnez un cours puis renseignez les informations de l'activité dans le masque.</p>
-          </div>
-
           <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
             <div class="timeline__header">
               <div>
@@ -77,10 +62,10 @@
                 <h3>5 semaines, 3 demi-jours</h3>
                 <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
               </div>
-              <div class="legend">
-                <span class="legend__item"><span class="dot dot--empty"></span>Libre</span>
-                <span class="legend__item"><span class="dot dot--filled"></span>Planifié</span>
-              </div>
+              <button class="icon-button" id="open-activity-modal" type="button" aria-haspopup="dialog">
+                <span aria-hidden="true">+</span>
+                <span class="sr-only">Ajouter une activité</span>
+              </button>
             </div>
             <div class="timeline__grid" id="timeline"></div>
           </div>
@@ -294,7 +279,6 @@
     const dbStatusText = document.getElementById('db-status-text');
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
-    const reloadActivitiesBtn = document.getElementById('reload-activities');
     const openActivityModalBtn = document.getElementById('open-activity-modal');
     const openCourseModalBtn = document.getElementById('open-course-modal');
     const weekSelect = document.getElementById('week-select');
