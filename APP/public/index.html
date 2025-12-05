@@ -241,8 +241,6 @@
     const activityModal = document.getElementById('activity-modal');
     const activityModalBackdrop = document.querySelector('[data-close-activity-modal]');
     const activityStatus = document.getElementById('activity-status');
-    const activityModalTitle = document.getElementById('activity-modal-title');
-    const activitySubmitButton = activityForm.querySelector('button[type="submit"]');
     const closeActivityModalBtn = document.getElementById('close-activity-modal');
     const courseForm = document.getElementById('course-form');
     const courseModal = document.getElementById('course-modal');
@@ -261,9 +259,6 @@
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
-    let editingActivity = null;
-    let activityContextMenu = null;
-    let activityContextData = null;
 
       function resetActivityFormDefaults() {
         activityForm.reset();
@@ -271,9 +266,6 @@
         weekSelect.value = 1;
         refreshSlotSelectOptions();
         slotSelect.value = 0;
-        activityModalTitle.textContent = 'Nouvelle activité';
-        activitySubmitButton.textContent = "Ajouter l'activité";
-        editingActivity = null;
       }
 
       function openActivityModal() {
@@ -453,11 +445,21 @@
       event.currentTarget.classList.add('is-dragging');
     }
 
-      function handleDragEnd(event) {
-        event.currentTarget.classList.remove('is-dragging');
-        draggedActivity = null;
-        dropHandled = false;
+    function handleDragEnd(event) {
+      event.currentTarget.classList.remove('is-dragging');
+
+      if (draggedActivity && !dropHandled) {
+        const shouldDelete = window.confirm("Voulez-vous supprimer cette activité ?");
+        if (shouldDelete) {
+          const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
+          sourceSlot.activities.splice(draggedActivity.index, 1);
+          renderSchedule();
+        }
       }
+
+      draggedActivity = null;
+      dropHandled = false;
+    }
 
     function handleDragOver(event) {
       event.preventDefault();
@@ -538,101 +540,8 @@
 
       activityEl.addEventListener('dragstart', handleDragStart);
       activityEl.addEventListener('dragend', handleDragEnd);
-      activityEl.addEventListener('contextmenu', (event) => {
-        openActivityContextMenu(event, { weekIndex, slotIndex, activityIndex });
-      });
 
       return activityEl;
-    }
-
-    function openActivityContextMenu(event, context) {
-      event.preventDefault();
-
-      if (!activityContextMenu) {
-        activityContextMenu = document.createElement('div');
-        activityContextMenu.className = 'activity-menu';
-        activityContextMenu.setAttribute('role', 'menu');
-        activityContextMenu.innerHTML = `
-          <button type="button" class="activity-menu__item" data-action="edit">✏️ Modifier</button>
-          <button type="button" class="activity-menu__item activity-menu__item--danger" data-action="delete">🗑 Supprimer</button>
-        `;
-        activityContextMenu.addEventListener('click', handleActivityContextMenuClick);
-        document.body.appendChild(activityContextMenu);
-      }
-
-      activityContextData = context;
-
-      activityContextMenu.style.top = `${event.pageY}px`;
-      activityContextMenu.style.left = `${event.pageX}px`;
-      activityContextMenu.classList.add('is-visible');
-    }
-
-    function closeActivityContextMenu() {
-      if (activityContextMenu) {
-        activityContextMenu.classList.remove('is-visible');
-      }
-      activityContextData = null;
-    }
-
-    function handleActivityContextMenuClick(event) {
-      if (!activityContextData) return;
-      const action = event.target.getAttribute('data-action');
-
-      if (action === 'edit') {
-        startEditingActivity(activityContextData);
-      } else if (action === 'delete') {
-        confirmAndDeleteActivity(activityContextData);
-      }
-
-      closeActivityContextMenu();
-    }
-
-    function startEditingActivity({ weekIndex, slotIndex, activityIndex }) {
-      const activity = schedule[weekIndex]?.slots?.[slotIndex]?.activities?.[activityIndex];
-      if (!activity) return;
-
-      editingActivity = {
-        id: activity.id,
-        weekIndex,
-        slotIndex,
-        activityIndex
-      };
-
-      weekSelect.value = weekIndex + 1;
-      refreshSlotSelectOptions();
-      slotSelect.value = slotIndex;
-      document.getElementById('activity-name').value = activity.name;
-      document.getElementById('type-select').value = activity.type;
-      document.getElementById('duration').value = activity.duration;
-      document.getElementById('details').value = activity.details;
-      document.getElementById('materials').value = activity.materials || '';
-      activityModalTitle.textContent = "Modifier l’activité";
-      activitySubmitButton.textContent = "Mettre à jour l’activité";
-      activityStatus.textContent = '';
-      activityModal.removeAttribute('hidden');
-      activityModal.classList.remove('is-hidden');
-      document.getElementById('activity-name').focus();
-    }
-
-    function confirmAndDeleteActivity({ weekIndex, slotIndex, activityIndex }) {
-      const slot = schedule[weekIndex]?.slots?.[slotIndex];
-      const activity = slot?.activities?.[activityIndex];
-      if (!activity) return;
-
-      const shouldDelete = window.confirm('Voulez-vous supprimer cette activité ?');
-      if (!shouldDelete) return;
-
-      deleteActivity(activity.id)
-        .then(() => {
-          const existingIndex = slot.activities.findIndex((item) => item.id === activity.id);
-          if (existingIndex !== -1) {
-            slot.activities.splice(existingIndex, 1);
-            renderSchedule();
-          }
-        })
-        .catch((error) => {
-          activityStatus.textContent = `⚠️ ${error.message}`;
-        });
     }
 
     function createSlotContent(weekIndex, slotIndex, slot) {
@@ -766,40 +675,9 @@
         const body = await response.json();
         activityStatus.textContent = 'Activité enregistrée dans la base MariaDB.';
         return body.activityId;
-        } catch (error) {
-            activityStatus.textContent = `⚠️ ${error.message}`;
-            return null;
-          }
-      }
-
-      async function updateActivity(activityId, payload) {
-        try {
-          const response = await fetch(`/api/activities/${activityId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-
-          if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || "Impossible de mettre à jour l'activité.");
-          }
-
-          return true;
-        } catch (error) {
+      } catch (error) {
           activityStatus.textContent = `⚠️ ${error.message}`;
-          return false;
-        }
-      }
-
-      async function deleteActivity(activityId) {
-        const response = await fetch(`/api/activities/${activityId}`, {
-          method: 'DELETE'
-        });
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || "Impossible de supprimer l'activité.");
+          return null;
         }
       }
 
@@ -818,25 +696,9 @@
         });
       }
 
-      document.addEventListener('click', (event) => {
-        if (activityContextMenu && activityContextMenu.contains(event.target)) return;
-        closeActivityContextMenu();
-      });
-      document.addEventListener('contextmenu', (event) => {
-        if (activityContextMenu && !activityContextMenu.contains(event.target)) {
-          closeActivityContextMenu();
-        }
-      });
-
       openActivityModalBtn.addEventListener('click', openActivityModal);
-      closeActivityModalBtn.addEventListener('click', () => {
-        closeActivityContextMenu();
-        closeActivityModal();
-      });
-      activityModalBackdrop.addEventListener('click', () => {
-        closeActivityContextMenu();
-        closeActivityModal();
-      });
+      closeActivityModalBtn.addEventListener('click', closeActivityModal);
+      activityModalBackdrop.addEventListener('click', closeActivityModal);
       openCourseModalBtn.addEventListener('click', openCourseModal);
       if (deleteCourseBtn) {
         deleteCourseBtn.addEventListener('click', deleteCurrentCourse);
@@ -850,7 +712,6 @@
             closeCourseModal();
           }
           if (!activityModal.hasAttribute('hidden')) {
-            closeActivityContextMenu();
             closeActivityModal();
           }
         }
@@ -877,37 +738,6 @@
       const targetSlot = schedule[weekIndex].slots[slotIndex];
       const activity = { name, type, details, duration, materials };
       activityStatus.textContent = 'Enregistrement de l’activité en cours...';
-
-      if (editingActivity) {
-        updateActivity(editingActivity.id, {
-          name,
-          week: weekIndex + 1,
-          slot: slotIndex,
-          format: type,
-          details,
-          duration,
-          materials,
-          courseId: currentCourseId
-        }).then((success) => {
-          if (!success) return;
-
-          const sourceSlot = schedule[editingActivity.weekIndex].slots[editingActivity.slotIndex];
-          const removalIndex = sourceSlot.activities.findIndex((item) => item.id === editingActivity.id);
-          if (removalIndex !== -1) {
-            sourceSlot.activities.splice(removalIndex, 1);
-          }
-
-          targetSlot.activities.push({ ...activity, id: editingActivity.id });
-          renderSchedule();
-          resetActivityFormDefaults();
-          closeActivityModal();
-        }).catch((error) => {
-          activityStatus.textContent = `⚠️ ${error.message}`;
-        });
-
-        return;
-      }
-
       persistActivity({
         name,
         week: weekIndex + 1,
