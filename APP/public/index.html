@@ -30,7 +30,6 @@
             <span>Cours disponibles</span>
             <select id="course-select"></select>
           </label>
-          <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
           <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
             <span aria-hidden="true">+</span>
             <span class="sr-only">Créer un nouveau cours</span>
@@ -213,7 +212,6 @@
       const dbStatusText = document.getElementById('db-status-text');
       const closeCourseModalBtn = document.getElementById('close-course-modal');
       const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
-      const reloadActivitiesBtn = document.getElementById('reload-activities');
       const toggleActivityFormBtn = document.getElementById('toggle-activity-form');
       const openCourseModalBtn = document.getElementById('open-course-modal');
       let draggedActivity = null;
@@ -664,12 +662,6 @@
     courseSelect.addEventListener('change', async (event) => {
       currentCourseId = Number(event.target.value);
       await loadActivitiesForCourse(currentCourseId);
-    });
-
-    reloadActivitiesBtn.addEventListener('click', () => {
-      if (currentCourseId) {
-        loadActivitiesForCourse(currentCourseId);
-      }
     });
 
     refreshDbStatus();
