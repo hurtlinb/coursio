@@ -18,9 +18,22 @@
           <span class="pill">2 demi-jours / semaine</span>
           <span class="pill">Activités illimitées</span>
         </div>
-        <div class="connection-status" id="db-status" aria-live="polite">
-          <span class="status-dot status-dot--checking" id="db-status-dot" aria-hidden="true"></span>
-          <span id="db-status-text">Vérification de la connexion à la base...</span>
+      </div>
+
+      <div class="course-toolbar" aria-label="Sélection des cours">
+        <div>
+          <p class="label">Cours</p>
+          <p class="muted">Choisissez un cours pour gérer les activités, ou créez-en un nouveau.</p>
+        </div>
+        <div class="course-toolbar__actions">
+          <label class="form-field form-field--inline">
+            <span>Cours disponibles</span>
+            <select id="course-select"></select>
+          </label>
+          <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
+            <span aria-hidden="true">+</span>
+            <span class="sr-only">Créer un nouveau cours</span>
+          </button>
         </div>
       </div>
 
@@ -74,13 +87,6 @@
         </div>
       </section>
 
-    <section class="section section--cta">
-      <div>
-        <div class="section__title">Prêt à lancer votre première vitrine ?</div>
-        <p class="section__subtitle">Déployez cette page d'accueil en Node.js en quelques secondes et personnalisez-la selon vos couleurs.</p>
-      </div>
-      <a class="btn btn-primary" href="#">Commencer maintenant</a>
-    </section>
   </main>
 
   <div class="activity-modal is-hidden" id="activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title" hidden>
@@ -201,7 +207,10 @@
   </div>
 
   <footer class="footer">
-    <p>Créé pour vous par l'équipe Coursio.</p>
+    <div class="connection-status" id="db-status" aria-live="polite">
+      <span class="status-dot status-dot--checking" id="db-status-dot" aria-hidden="true"></span>
+      <span id="db-status-text">Vérification de la connexion à la base...</span>
+    </div>
   </footer>
 
   <script>
@@ -272,6 +281,19 @@
       function closeActivityModal() {
         activityModal.setAttribute('hidden', '');
         activityModal.classList.add('is-hidden');
+      }
+
+      function openCourseModal() {
+        courseForm.reset();
+        courseStatus.textContent = '';
+        courseModal.removeAttribute('hidden');
+        courseModal.classList.remove('is-hidden');
+        document.getElementById('course-teacher').focus();
+      }
+
+      function closeCourseModal() {
+        courseModal.setAttribute('hidden', '');
+        courseModal.classList.add('is-hidden');
       }
 
       function openCourseModal() {
@@ -703,12 +725,6 @@
     courseSelect.addEventListener('change', async (event) => {
       currentCourseId = Number(event.target.value);
       await loadActivitiesForCourse(currentCourseId);
-    });
-
-    reloadActivitiesBtn.addEventListener('click', () => {
-      if (currentCourseId) {
-        loadActivitiesForCourse(currentCourseId);
-      }
     });
 
     refreshDbStatus();
