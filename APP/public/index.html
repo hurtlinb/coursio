@@ -228,6 +228,34 @@
       </form>
     </div>
   </div>
+
+  <div class="course-modal reschedule-modal is-hidden" id="reschedule-modal" role="dialog" aria-modal="true" aria-labelledby="reschedule-modal-title" hidden>
+    <div class="course-modal__backdrop" data-close-reschedule-modal></div>
+    <div class="course-modal__content">
+      <div class="course-modal__header">
+        <div>
+          <p class="label" id="reschedule-modal-title">Replanifier la semaine</p>
+          <p class="muted" id="reschedule-week-title">Semaine 1</p>
+        </div>
+        <button class="icon-button icon-button--ghost" id="close-reschedule-modal" type="button" aria-label="Fermer le recalcul des dates">×</button>
+      </div>
+
+      <form class="course-form" id="reschedule-form">
+        <label class="form-field">
+          <span>Nouvelle date de début</span>
+          <input type="date" id="reschedule-date" required>
+        </label>
+        <p class="muted">La date et les demi-journées suivantes seront recalculées pour cette semaine.</p>
+        <div class="course-form__actions">
+          <div class="activity-form__buttons">
+            <button class="btn btn-primary" type="submit">Mettre à jour</button>
+            <button class="btn btn-ghost" type="button" id="cancel-reschedule">Annuler</button>
+          </div>
+          <p class="muted" id="reschedule-status" aria-live="polite"></p>
+        </div>
+      </form>
+    </div>
+  </div>
   <script>
     const weeks = 5;
     const supportedFormats = {
@@ -307,6 +335,7 @@
 
     let schedule = buildSchedule();
     let courseHalfDays = [];
+    let rescheduleWeekIndex = null;
 
     const timeline = document.getElementById('timeline');
     const authOverlay = document.getElementById('auth-overlay');
@@ -339,6 +368,14 @@
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openCourseModalBtn = document.getElementById('open-course-modal');
+    const rescheduleModal = document.getElementById('reschedule-modal');
+    const rescheduleModalBackdrop = document.querySelector('[data-close-reschedule-modal]');
+    const closeRescheduleModalBtn = document.getElementById('close-reschedule-modal');
+    const rescheduleForm = document.getElementById('reschedule-form');
+    const rescheduleDateInput = document.getElementById('reschedule-date');
+    const rescheduleStatus = document.getElementById('reschedule-status');
+    const rescheduleWeekTitle = document.getElementById('reschedule-week-title');
+    const cancelRescheduleButton = document.getElementById('cancel-reschedule');
     const loginEmailInput = document.getElementById('login-email');
     const registerNameInput = document.getElementById('register-name');
     const registerEmailInput = document.getElementById('register-email');
@@ -821,31 +858,20 @@
       return lastFilledSlot === -1 ? 0 : lastFilledSlot;
     }
 
-    async function rescheduleWeekDates(weekIndex) {
+    async function rescheduleWeekDates(weekIndex, normalizedDate) {
       if (!currentCourseId) {
         courseStatus.textContent = 'Sélectionnez ou créez un cours avant de modifier les dates.';
         return;
       }
 
-      const weekNumber = weekIndex + 1;
-      const currentStartDate = getWeekStartDate(weekNumber);
-      const promptValue = window.prompt(
-        `Nouvelle date de début pour la semaine ${weekNumber} (format AAAA-MM-JJ) :`,
-        currentStartDate
-      );
-
-      if (promptValue === null) {
-        return;
-      }
-
-      const normalizedDate = promptValue.trim();
-
       if (!isValidDateInput(normalizedDate)) {
-        courseStatus.textContent = 'Veuillez saisir une date valide au format AAAA-MM-JJ.';
+        rescheduleStatus.textContent = 'Veuillez saisir une date valide au format AAAA-MM-JJ.';
         return;
       }
 
+      const weekNumber = weekIndex + 1;
       courseStatus.textContent = 'Recalcul des dates des semaines...';
+      rescheduleStatus.textContent = '';
 
       try {
         const response = await authorizedFetch(
@@ -862,15 +888,36 @@
           throw new Error(error.error || 'Impossible de mettre à jour les dates.');
         }
 
-        const { halfDays } = await response.json();
-        courseHalfDays = halfDays || [];
-        schedule = buildSchedule(courseHalfDays);
-        renderSchedule();
+        await loadActivitiesForCourse(currentCourseId);
+        closeRescheduleModal();
         courseStatus.textContent = `Dates mises à jour à partir de la semaine ${weekNumber}.`;
       } catch (error) {
         if (error.message === 'UNAUTHORIZED') return;
-        courseStatus.textContent = `⚠️ ${error.message}`;
+        rescheduleStatus.textContent = `⚠️ ${error.message}`;
       }
+    }
+
+    function openRescheduleModal(weekIndex) {
+      if (!currentCourseId) {
+        courseStatus.textContent = 'Sélectionnez ou créez un cours avant de modifier les dates.';
+        return;
+      }
+
+      rescheduleWeekIndex = weekIndex;
+      const weekNumber = weekIndex + 1;
+      rescheduleWeekTitle.textContent = `Semaine ${weekNumber}`;
+      rescheduleDateInput.value = getWeekStartDate(weekNumber);
+      rescheduleStatus.textContent = '';
+
+      rescheduleModal.classList.remove('is-hidden');
+      rescheduleModal.hidden = false;
+      rescheduleDateInput.focus();
+    }
+
+    function closeRescheduleModal() {
+      rescheduleWeekIndex = null;
+      rescheduleModal.classList.add('is-hidden');
+      rescheduleModal.hidden = true;
     }
 
     function renderSchedule() {
@@ -890,7 +937,7 @@
         weekLabel.type = 'button';
         weekLabel.className = 'label week-card__title-button';
         weekLabel.textContent = `Semaine ${week.week}`;
-        weekLabel.addEventListener('click', () => rescheduleWeekDates(weekIndex));
+        weekLabel.addEventListener('click', () => openRescheduleModal(weekIndex));
 
         headerMeta.appendChild(weekLabel);
 
@@ -1064,6 +1111,19 @@
       }
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
+      closeRescheduleModalBtn.addEventListener('click', closeRescheduleModal);
+      cancelRescheduleButton.addEventListener('click', closeRescheduleModal);
+      rescheduleModalBackdrop.addEventListener('click', closeRescheduleModal);
+      rescheduleForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (rescheduleWeekIndex === null) {
+          closeRescheduleModal();
+          return;
+        }
+
+        await rescheduleWeekDates(rescheduleWeekIndex, rescheduleDateInput.value.trim());
+      });
 
       tabLogin.addEventListener('click', () => showAuthOverlay('login'));
       tabRegister.addEventListener('click', () => showAuthOverlay('register'));
