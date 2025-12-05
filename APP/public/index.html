@@ -8,14 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="session-banner" id="session-banner" hidden>
-    <div>
-      <p class="label">Connecté</p>
-      <p class="muted" id="session-user"></p>
-    </div>
-    <button class="btn btn-ghost" id="logout-button" type="button">Se déconnecter</button>
-  </div>
-
   <div class="auth-overlay is-hidden" id="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
     <div class="auth-card">
       <div class="auth-card__header">
@@ -60,9 +52,18 @@
 
   <main class="sections">
     <section class="section planner" id="demo">
-      <div class="planner__intro">
-        <div class="section__title">Planifiez vos activités</div>
-        <p class="section__subtitle"></p>
+      <div class="planner__header">
+        <div class="planner__intro">
+          <div class="section__title">Planifiez vos activités</div>
+          <p class="section__subtitle"></p>
+        </div>
+        <div class="session-banner" id="session-banner" hidden>
+          <div>
+            <p class="label">Connecté</p>
+            <p class="muted" id="session-user"></p>
+          </div>
+          <button class="btn btn-ghost" id="logout-button" type="button">Se déconnecter</button>
+        </div>
       </div>
 
       <div class="course-toolbar" aria-label="Sélection des cours">
