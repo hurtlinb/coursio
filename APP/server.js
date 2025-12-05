@@ -362,6 +362,79 @@ app.post('/api/activities', async (req, res) => {
   }
 });
 
+app.patch('/api/activities/:activityId/move', async (req, res) => {
+  try {
+    const activityId = Number(req.params.activityId);
+    const { week, slot, courseId } = req.body;
+
+    if (!Number.isInteger(activityId) || activityId <= 0) {
+      return res.status(400).json({ error: "Identifiant d'activité invalide." });
+    }
+
+    const [existingActivities] = await pool.query(
+      `SELECT a.id, h.course_id AS courseId
+       FROM activities a
+       INNER JOIN half_days h ON a.half_day_id = h.id
+       WHERE a.id = ?
+       LIMIT 1`,
+      [activityId]
+    );
+
+    if (existingActivities.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable.' });
+    }
+
+    const activityCourseId = existingActivities[0].courseId;
+
+    if (courseId && Number(courseId) !== activityCourseId) {
+      return res.status(400).json({ error: "L'activité ne peut être déplacée vers un autre cours." });
+    }
+
+    const weekNumber = Number(week);
+    if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 5) {
+      return res.status(400).json({ error: 'La semaine doit être comprise entre 1 et 5.' });
+    }
+
+    const slotIndex = Number(slot);
+    const period = slotToPeriod[slotIndex];
+    if (!period) {
+      return res.status(400).json({ error: 'Le créneau est invalide.' });
+    }
+
+    const sessionDate = computeSessionDate(weekNumber);
+    const halfDayId = await getHalfDayId(activityCourseId, weekNumber, sessionDate, period);
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [positions] = await connection.query(
+        'SELECT COALESCE(MAX(position), 0) AS maxPosition FROM activities WHERE half_day_id = ?',
+        [halfDayId]
+      );
+      const nextPosition = Number(positions[0].maxPosition) + 1;
+
+      await connection.query(
+        'UPDATE activities SET half_day_id = ?, position = ? WHERE id = ?',
+        [halfDayId, nextPosition, activityId]
+      );
+
+      await connection.commit();
+
+      res.json({ success: true, halfDayId, position: nextPosition });
+    } catch (error) {
+      await connection.rollback();
+      console.error("Erreur lors du déplacement de l'activité :", error.message);
+      res.status(500).json({ error: "Impossible de mettre à jour l'activité." });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Erreur lors du déplacement de l'activité :", error.message);
+    res.status(500).json({ error: "Impossible de mettre à jour l'activité." });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Ressource introuvable' });
 });
