@@ -12,10 +12,10 @@
     <section class="section planner" id="demo">
       <div class="planner__intro">
         <div class="section__title">Planifiez vos activités</div>
-        <p class="section__subtitle">Par défaut, chaque cours est structuré en 5 semaines de 2 demi-jours. Utilisez le formulaire pour ajouter vos activités et visualiser immédiatement leur placement.</p>
+        <p class="section__subtitle">Par défaut, chaque cours est structuré en 5 semaines de 3 demi-jours. Utilisez le formulaire pour ajouter vos activités et visualiser immédiatement leur placement.</p>
         <div class="pill-list">
           <span class="pill">5 semaines</span>
-          <span class="pill">2 demi-jours / semaine</span>
+          <span class="pill">3 demi-jours / semaine</span>
           <span class="pill">Activités illimitées</span>
         </div>
       </div>
@@ -74,7 +74,7 @@
             <div class="timeline__header">
               <div>
                 <p class="label">Planning</p>
-                <h3>5 semaines, 2 demi-jours</h3>
+                <h3>5 semaines, 3 demi-jours</h3>
                 <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
               </div>
               <div class="legend">
@@ -198,6 +198,19 @@
           <span>Titre du module</span>
           <input type="text" id="course-name" placeholder="Nom du module" required>
         </label>
+        <div class="form-row">
+          <label class="form-field">
+            <span>Date de début</span>
+            <input type="date" id="course-start-date" required>
+          </label>
+          <label class="form-field">
+            <span>Demi-journée de début</span>
+            <select id="course-start-slot">
+              <option value="0">Matin</option>
+              <option value="1">Après-midi</option>
+            </select>
+          </label>
+        </div>
         <div class="course-form__actions">
           <button class="btn btn-primary" type="submit">Créer le cours</button>
           <p class="muted" id="course-status" aria-live="polite"></p>
@@ -215,7 +228,6 @@
 
   <script>
     const weeks = 5;
-    const slotLabels = ['Matin', 'Après-midi'];
     const supportedFormats = {
       presentation: 'Présentation',
       exercice: 'Exercice',
@@ -226,14 +238,44 @@
       evaluation: 'Évaluation'
     };
 
-    function createEmptySchedule() {
-      return Array.from({ length: weeks }, (_, index) => ({
-        week: index + 1,
-        slots: slotLabels.map(label => ({ label, activities: [] }))
-      }));
+    const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit'
+    });
+
+    function formatHalfDayLabel(halfDay) {
+      const periodLabel = halfDay.period === 'apres_midi' ? 'Après-midi' : 'Matin';
+      const formattedDate = dateFormatter.format(new Date(halfDay.sessionDate));
+      return `${formattedDate} • ${periodLabel}`;
     }
 
-    let schedule = createEmptySchedule();
+    function buildSchedule(halfDays = []) {
+      const weeksSchedule = Array.from({ length: weeks }, (_, index) => ({
+        week: index + 1,
+        slots: Array.from({ length: 3 }, (__, slotIndex) => ({
+          label: `Créneau ${slotIndex + 1}`,
+          activities: []
+        }))
+      }));
+
+      halfDays.forEach((halfDay) => {
+        const weekIndex = halfDay.weekNumber - 1;
+        const slotIndex = halfDay.slotIndex;
+
+        if (!weeksSchedule[weekIndex] || !weeksSchedule[weekIndex].slots[slotIndex]) return;
+
+        weeksSchedule[weekIndex].slots[slotIndex] = {
+          label: formatHalfDayLabel(halfDay),
+          activities: []
+        };
+      });
+
+      return weeksSchedule;
+    }
+
+    let schedule = buildSchedule();
+    let courseHalfDays = [];
 
     const timeline = document.getElementById('timeline');
     const activityForm = document.getElementById('activity-form');
@@ -245,6 +287,8 @@
     const courseModal = document.getElementById('course-modal');
     const courseSelect = document.getElementById('course-select');
     const courseStatus = document.getElementById('course-status');
+    const courseStartDateInput = document.getElementById('course-start-date');
+    const courseStartSlotSelect = document.getElementById('course-start-slot');
     const dbStatus = document.getElementById('db-status');
     const dbStatusDot = document.getElementById('db-status-dot');
     const dbStatusText = document.getElementById('db-status-text');
@@ -253,6 +297,8 @@
     const reloadActivitiesBtn = document.getElementById('reload-activities');
     const openActivityModalBtn = document.getElementById('open-activity-modal');
     const openCourseModalBtn = document.getElementById('open-course-modal');
+    const weekSelect = document.getElementById('week-select');
+    const slotSelect = document.getElementById('slot-select');
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
@@ -266,8 +312,9 @@
       function resetActivityFormDefaults() {
         activityForm.reset();
         document.getElementById('duration').value = 60;
-        document.getElementById('week-select').value = 1;
-        document.getElementById('slot-select').value = 0;
+        weekSelect.value = 1;
+        refreshSlotSelectOptions();
+        slotSelect.value = 0;
       }
 
       function openActivityModal() {
@@ -288,6 +335,8 @@
         courseStatus.textContent = '';
         courseModal.removeAttribute('hidden');
         courseModal.classList.remove('is-hidden');
+        courseStartDateInput.value = new Date().toISOString().slice(0, 10);
+        courseStartSlotSelect.value = 0;
         document.getElementById('course-teacher').focus();
       }
 
@@ -296,17 +345,31 @@
         courseModal.classList.add('is-hidden');
       }
 
-      function openCourseModal() {
-        courseForm.reset();
-        courseStatus.textContent = '';
-        courseModal.removeAttribute('hidden');
-        courseModal.classList.remove('is-hidden');
-        document.getElementById('course-teacher').focus();
+      function getSlotsForWeek(weekNumber) {
+        return courseHalfDays
+          .filter((halfDay) => halfDay.weekNumber === weekNumber)
+          .sort((a, b) => a.slotIndex - b.slotIndex);
       }
 
-      function closeCourseModal() {
-        courseModal.setAttribute('hidden', '');
-        courseModal.classList.add('is-hidden');
+      function refreshSlotSelectOptions() {
+        const selectedWeek = Number(weekSelect.value) || 1;
+        const slots = getSlotsForWeek(selectedWeek);
+        slotSelect.innerHTML = '';
+
+        const slotList = slots.length > 0
+          ? slots
+          : Array.from({ length: 3 }, (_, index) => ({
+              slotIndex: index,
+              sessionDate: null,
+              period: index % 2 === 0 ? 'matin' : 'apres_midi'
+            }));
+
+        slotList.forEach((halfDay) => {
+          const option = document.createElement('option');
+          option.value = halfDay.slotIndex;
+          option.textContent = halfDay.sessionDate ? formatHalfDayLabel(halfDay) : `Créneau ${halfDay.slotIndex + 1}`;
+          slotSelect.appendChild(option);
+        });
       }
 
     async function refreshDbStatus() {
@@ -363,8 +426,10 @@
 
         if (courses.length === 0) {
           courseStatus.textContent = 'Aucun cours disponible pour le moment.';
-          schedule = createEmptySchedule();
+          courseHalfDays = [];
+          schedule = buildSchedule();
           renderSchedule();
+          refreshSlotSelectOptions();
           return;
         }
 
@@ -560,11 +625,20 @@
     async function loadActivitiesForCourse(courseId) {
       if (!courseId) return;
 
-      schedule = createEmptySchedule();
-      renderSchedule();
       courseStatus.textContent = 'Chargement des activités du cours...';
 
       try {
+        const halfDayResponse = await fetch(`/api/courses/${courseId}/half-days`);
+        if (!halfDayResponse.ok) {
+          throw new Error();
+        }
+
+        const { halfDays } = await halfDayResponse.json();
+        courseHalfDays = halfDays || [];
+        schedule = buildSchedule(courseHalfDays);
+        renderSchedule();
+        refreshSlotSelectOptions();
+
         const response = await fetch(`/api/courses/${courseId}/activities`);
         if (!response.ok) {
           throw new Error();
@@ -638,6 +712,7 @@
       openCourseModalBtn.addEventListener('click', openCourseModal);
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
+      weekSelect.addEventListener('change', refreshSlotSelectOptions);
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           if (!courseModal.hasAttribute('hidden')) {
@@ -658,8 +733,8 @@
       }
 
       const name = document.getElementById('activity-name').value.trim();
-      const weekIndex = Number(document.getElementById('week-select').value) - 1;
-      const slotIndex = Number(document.getElementById('slot-select').value);
+      const weekIndex = Number(weekSelect.value) - 1;
+      const slotIndex = Number(slotSelect.value);
       const type = document.getElementById('type-select').value;
       const duration = Number(document.getElementById('duration').value) || 0;
       const details = document.getElementById('details').value.trim();
@@ -699,7 +774,9 @@
           className: document.getElementById('course-class').value.trim(),
           room: document.getElementById('course-room').value.trim(),
           moduleNumber: document.getElementById('course-number').value.trim(),
-          moduleName: document.getElementById('course-name').value.trim()
+          moduleName: document.getElementById('course-name').value.trim(),
+          startDate: courseStartDateInput.value,
+          startSlot: courseStartSlotSelect.value
         };
 
         const response = await fetch('/api/courses', {
@@ -729,6 +806,7 @@
 
     refreshDbStatus();
     renderSchedule();
+    refreshSlotSelectOptions();
     loadCourses();
   </script>
 </body>
