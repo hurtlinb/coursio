@@ -210,7 +210,7 @@ h1 {
 
 .planner__grid {
   display: grid;
-  grid-template-columns: minmax(320px, 380px) 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 24px;
   align-items: start;
 }
@@ -243,32 +243,6 @@ h1 {
   display: none;
 }
 
-.course-panel {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  box-shadow: var(--shadow);
-}
-
-.course-panel__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.course-panel__select {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 .course-form {
   display: flex;
   flex-direction: column;
@@ -279,6 +253,27 @@ h1 {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.course-toolbar {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(120deg, rgba(124, 58, 237, 0.08), rgba(34, 211, 238, 0.08));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.course-toolbar__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .pill-list {
@@ -372,6 +367,10 @@ h1 {
   font-weight: 600;
 }
 
+.form-field--inline span {
+  font-size: 14px;
+}
+
 .form-field input,
 .form-field select,
 .form-field textarea {
@@ -398,6 +397,52 @@ h1 {
   flex-direction: column;
   gap: 16px;
   grid-column: 1 / -1;
+}
+
+.course-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.course-modal[hidden] {
+  display: none;
+}
+
+.course-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.course-modal__content {
+  position: relative;
+  width: min(640px, 92vw);
+  background: #0e1427;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.4);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 1;
+}
+
+.course-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.icon-button--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .timeline__header {
