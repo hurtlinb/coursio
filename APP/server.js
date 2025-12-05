@@ -50,12 +50,28 @@ const effectiveDbConfig = {
   port: toNumber(dbConfig.port ?? process.env.DB_PORT, 3306)
 };
 
-const pool = mysql.createPool({
-  ...effectiveDbConfig,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+let pool;
+
+function createPool() {
+  return mysql.createPool({
+    ...effectiveDbConfig,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  });
+}
+
+async function ensureDatabaseExists() {
+  const { database, ...connectionConfig } = effectiveDbConfig;
+
+  const adminConnection = await mysql.createConnection(connectionConfig);
+
+  try {
+    await adminConnection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\``);
+  } finally {
+    await adminConnection.end();
+  }
+}
 
 const app = express();
 app.use(express.json());
@@ -652,6 +668,10 @@ app.use((req, res) => {
 
 async function bootstrap() {
   try {
+    await ensureDatabaseExists();
+
+    pool = createPool();
+
     await ensureSchema();
     await ensureDefaultCourse();
 
