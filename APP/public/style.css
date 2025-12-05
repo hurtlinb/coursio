@@ -582,6 +582,47 @@ h1 {
   background: rgba(34, 211, 238, 0.06);
 }
 
+.context-menu {
+  position: fixed;
+  min-width: 180px;
+  background: rgba(11, 16, 33, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 20;
+}
+
+.context-menu.is-hidden {
+  display: none;
+}
+
+.context-menu__item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.context-menu__item:hover,
+.context-menu__item:focus-visible {
+  background: rgba(124, 58, 237, 0.16);
+  outline: none;
+}
+
+.context-menu__item--danger:hover,
+.context-menu__item--danger:focus-visible {
+  background: rgba(239, 68, 68, 0.16);
+}
+
 .label {
   color: var(--accent-2);
   font-weight: 700;
