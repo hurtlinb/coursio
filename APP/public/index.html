@@ -259,6 +259,8 @@
     const courseModal = document.getElementById('course-modal');
     const courseSelect = document.getElementById('course-select');
     const courseStatus = document.getElementById('course-status');
+    const courseStartDateInput = document.getElementById('course-start-date');
+    const courseStartSlotSelect = document.getElementById('course-start-slot');
     const deleteCourseBtn = document.getElementById('delete-course');
     const dbStatus = document.getElementById('db-status');
     const dbStatusDot = document.getElementById('db-status-dot');
@@ -267,6 +269,8 @@
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openActivityModalBtn = document.getElementById('open-activity-modal');
     const openCourseModalBtn = document.getElementById('open-course-modal');
+    const slotSelect = document.getElementById('slot-select');
+    const weekSelect = document.getElementById('week-select');
     let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
@@ -739,7 +743,9 @@
       closeActivityModalBtn.addEventListener('click', closeActivityModal);
       activityModalBackdrop.addEventListener('click', closeActivityModal);
       openCourseModalBtn.addEventListener('click', openCourseModal);
-      deleteCourseBtn.addEventListener('click', deleteCurrentCourse);
+      if (deleteCourseBtn) {
+        deleteCourseBtn.addEventListener('click', deleteCurrentCourse);
+      }
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
       weekSelect.addEventListener('change', refreshSlotSelectOptions);
