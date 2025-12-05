@@ -75,12 +75,7 @@ async function ensureDatabaseExists() {
 
 const app = express();
 app.use(express.json());
-app.use(
-  express.static(publicDir, {
-    index: 'index.html',
-    maxAge: '1d'
-  })
-);
+app.use(express.static(publicDir));
 
 const defaultCourse = {
   teacher: process.env.DEFAULT_TEACHER || 'Équipe Coursio',
@@ -800,18 +795,6 @@ app.delete('/api/activities/:activityId', async (req, res) => {
     console.error('Erreur lors de la suppression de l’activité :', error.message);
     res.status(500).json({ error: 'Impossible de supprimer l’activité.' });
   }
-});
-
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    return next();
-  }
-
-  if (req.method !== 'GET') {
-    return next();
-  }
-
-  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
 app.use((req, res) => {
