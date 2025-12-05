@@ -302,11 +302,12 @@
     }
 
     function handleDragStart(event) {
-      const { week, slot, index } = event.currentTarget.dataset;
+      const { week, slot, index, id } = event.currentTarget.dataset;
       draggedActivity = {
         week: Number(week),
         slot: Number(slot),
-        index: Number(index)
+        index: Number(index),
+        id: Number(id)
       };
       dropHandled = false;
       event.dataTransfer.effectAllowed = 'move';
@@ -360,6 +361,11 @@
       const [activity] = sourceSlot.activities.splice(draggedActivity.index, 1);
       schedule[targetWeek].slots[targetSlot].activities.push(activity);
 
+      moveActivity(draggedActivity.id, targetWeek + 1, targetSlot).catch(() => {
+        courseStatus.textContent = '⚠️ Impossible de mettre à jour la base, rechargement du planning...';
+        loadActivitiesForCourse(currentCourseId);
+      });
+
       draggedActivity = null;
       renderSchedule();
     }
@@ -371,6 +377,7 @@
       activityEl.dataset.week = weekIndex;
       activityEl.dataset.slot = slotIndex;
       activityEl.dataset.index = activityIndex;
+      activityEl.dataset.id = activity.id;
 
       const header = document.createElement('div');
       header.className = 'activity__header';
@@ -496,6 +503,7 @@
 
           if (schedule[weekIndex] && schedule[weekIndex].slots[slotIndex]) {
             schedule[weekIndex].slots[slotIndex].activities.push({
+              id: activity.id,
               name: activity.name,
               type: activity.type,
               details: activity.details,
@@ -525,12 +533,28 @@
           throw new Error(error.error || 'Sauvegarde impossible');
         }
 
+        const body = await response.json();
         status.textContent = 'Activité enregistrée dans la base MariaDB.';
-        return true;
+        return body.activityId;
       } catch (error) {
           status.textContent = `⚠️ ${error.message}`;
-          return false;
+          return null;
         }
+      }
+
+      async function moveActivity(activityId, weekNumber, slotIndex) {
+        if (!activityId) return Promise.resolve();
+
+        return fetch(`/api/activities/${activityId}/move`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ week: weekNumber, slot: slotIndex, courseId: currentCourseId })
+        }).then(async (response) => {
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || "Impossible de mettre à jour l'activité.");
+          }
+        });
       }
 
       toggleActivityFormBtn.addEventListener('click', () => togglePanel(toggleActivityFormBtn, form));
@@ -566,9 +590,9 @@
         duration,
         materials,
         courseId: currentCourseId
-      }).then((success) => {
-        if (success) {
-          targetSlot.activities.push(activity);
+      }).then((activityId) => {
+        if (activityId) {
+          targetSlot.activities.push({ ...activity, id: activityId });
           renderSchedule();
           form.reset();
           document.getElementById('duration').value = 60;
