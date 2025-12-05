@@ -24,129 +24,145 @@
         </div>
       </div>
 
-      <div class="planner__grid">
-        <div class="course-panel">
-          <div class="course-panel__header">
-            <div>
-              <p class="label">Cours</p>
-              <p class="muted">Sélectionnez un cours existant ou créez-en un nouveau.</p>
+        <div class="planner__grid">
+          <div class="course-panel">
+            <div class="course-panel__header">
+              <div>
+                <p class="label">Cours</p>
+                <p class="muted">Sélectionnez un cours existant ou créez-en un nouveau.</p>
+              </div>
+              <div class="course-panel__select">
+                <label class="form-field">
+                  <span>Cours disponibles</span>
+                  <select id="course-select"></select>
+                </label>
+                <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
+                <button class="icon-button" id="toggle-course-form" type="button" aria-expanded="false" aria-controls="course-form">
+                  <span aria-hidden="true">+</span>
+                  <span class="sr-only">Créer un cours</span>
+                </button>
+              </div>
             </div>
-            <div class="course-panel__select">
+
+            <form class="course-form is-hidden" id="course-form" hidden>
+              <div class="form-row">
+                <label class="form-field">
+                  <span>Enseignant</span>
+                  <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
+                </label>
+                <label class="form-field">
+                  <span>Classe</span>
+                  <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="form-field">
+                  <span>Salle</span>
+                  <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
+                </label>
+                <label class="form-field">
+                  <span>Module</span>
+                  <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
+                </label>
+              </div>
               <label class="form-field">
-                <span>Cours disponibles</span>
-                <select id="course-select"></select>
+                <span>Titre du module</span>
+                <input type="text" id="course-name" placeholder="Nom du module" required>
               </label>
-              <button class="btn btn-secondary" id="reload-activities" type="button">Recharger les activités</button>
-            </div>
+              <div class="course-form__actions">
+                <button class="btn btn-primary" type="submit">Créer le cours</button>
+                <p class="muted" id="course-status" aria-live="polite"></p>
+              </div>
+            </form>
           </div>
 
-          <form class="course-form" id="course-form">
-            <div class="form-row">
+          <div class="panel-card">
+            <div class="panel-card__header">
+              <div>
+                <p class="label">Activités</p>
+                <p class="muted">Ouvrez le formulaire pour planifier une activité.</p>
+              </div>
+              <button class="icon-button" id="toggle-activity-form" type="button" aria-expanded="false" aria-controls="activity-form">
+                <span aria-hidden="true">+</span>
+                <span class="sr-only">Ajouter une activité</span>
+              </button>
+            </div>
+
+            <form class="activity-form is-hidden" id="activity-form" hidden>
               <label class="form-field">
-                <span>Enseignant</span>
-                <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
+                <span>Nom de l'activité</span>
+                <input type="text" id="activity-name" placeholder="Ex : Atelier de prototypage" required>
               </label>
+
+              <div class="form-row">
+                <label class="form-field">
+                  <span>Semaine (1 à 5)</span>
+                  <select id="week-select">
+                    <option value="1">Semaine 1</option>
+                    <option value="2">Semaine 2</option>
+                    <option value="3">Semaine 3</option>
+                    <option value="4">Semaine 4</option>
+                    <option value="5">Semaine 5</option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>Demi-jour</span>
+                  <select id="slot-select">
+                    <option value="0">Matin</option>
+                    <option value="1">Après-midi</option>
+                  </select>
+                </label>
+              </div>
+
               <label class="form-field">
-                <span>Classe</span>
-                <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
+                <span>Format</span>
+                <select id="type-select">
+                  <option value="presentation">Présentation</option>
+                  <option value="exercice">Exercice</option>
+                  <option value="travail_de_groupe">Travail de groupe</option>
+                  <option value="jeu">Jeu</option>
+                  <option value="recherche_information">Recherche d'information</option>
+                  <option value="synthese">Synthèse</option>
+                  <option value="evaluation">Évaluation</option>
+                </select>
               </label>
-            </div>
-            <div class="form-row">
+
               <label class="form-field">
-                <span>Salle</span>
-                <input type="text" id="course-room" placeholder="Ex : Salle 204" required>
+                <span>Durée (minutes)</span>
+                <input type="number" id="duration" min="1" max="480" value="60" required>
               </label>
+
               <label class="form-field">
-                <span>Module</span>
-                <input type="text" id="course-number" placeholder="Ex : MOD-101" required>
+                <span>Détails (facultatif)</span>
+                <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
               </label>
-            </div>
-            <label class="form-field">
-              <span>Titre du module</span>
-              <input type="text" id="course-name" placeholder="Nom du module" required>
-            </label>
-            <div class="course-form__actions">
-              <button class="btn btn-primary" type="submit">Créer le cours</button>
-              <p class="muted" id="course-status" aria-live="polite"></p>
-            </div>
-          </form>
-        </div>
 
-        <form class="activity-form" id="activity-form">
-          <h3>Nouvelle activité</h3>
-          <label class="form-field">
-            <span>Nom de l'activité</span>
-            <input type="text" id="activity-name" placeholder="Ex : Atelier de prototypage" required>
-          </label>
+              <label class="form-field">
+                <span>Matériel (facultatif)</span>
+                <textarea id="materials" rows="2" placeholder="Listez les ressources utiles"></textarea>
+              </label>
 
-          <div class="form-row">
-          <label class="form-field">
-            <span>Semaine (1 à 5)</span>
-            <select id="week-select">
-              <option value="1">Semaine 1</option>
-              <option value="2">Semaine 2</option>
-              <option value="3">Semaine 3</option>
-              <option value="4">Semaine 4</option>
-              <option value="5">Semaine 5</option>
-            </select>
-          </label>
-          <label class="form-field">
-            <span>Demi-jour</span>
-            <select id="slot-select">
-              <option value="0">Matin</option>
-              <option value="1">Après-midi</option>
-            </select>
-          </label>
-        </div>
-
-        <label class="form-field">
-          <span>Format</span>
-          <select id="type-select">
-            <option value="presentation">Présentation</option>
-            <option value="exercice">Exercice</option>
-            <option value="travail_de_groupe">Travail de groupe</option>
-            <option value="jeu">Jeu</option>
-            <option value="recherche_information">Recherche d'information</option>
-            <option value="synthese">Synthèse</option>
-            <option value="evaluation">Évaluation</option>
-          </select>
-        </label>
-
-        <label class="form-field">
-          <span>Durée (minutes)</span>
-          <input type="number" id="duration" min="1" max="480" value="60" required>
-        </label>
-
-        <label class="form-field">
-          <span>Détails (facultatif)</span>
-          <textarea id="details" rows="3" placeholder="Objectifs, matériel, format, etc."></textarea>
-        </label>
-
-        <label class="form-field">
-          <span>Matériel (facultatif)</span>
-          <textarea id="materials" rows="2" placeholder="Listez les ressources utiles"></textarea>
-        </label>
-
-        <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
-        <p class="muted" id="status" aria-live="polite"></p>
-      </form>
-
-        <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
-          <div class="timeline__header">
-            <div>
-              <p class="label">Planning</p>
-              <h3>5 semaines, 2 demi-jours</h3>
-              <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
-            </div>
-            <div class="legend">
-              <span class="legend__item"><span class="dot dot--empty"></span>Libre</span>
-              <span class="legend__item"><span class="dot dot--filled"></span>Planifié</span>
-            </div>
+              <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
+              <p class="muted" id="status" aria-live="polite"></p>
+            </form>
           </div>
-          <div class="timeline__grid" id="timeline"></div>
+
+          <div class="timeline" aria-live="polite" aria-label="Planning des 5 semaines">
+            <div class="timeline__header">
+              <div>
+                <p class="label">Planning</p>
+                <h3>5 semaines, 2 demi-jours</h3>
+                <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
+              </div>
+              <div class="legend">
+                <span class="legend__item"><span class="dot dot--empty"></span>Libre</span>
+                <span class="legend__item"><span class="dot dot--filled"></span>Planifié</span>
+              </div>
+            </div>
+            <div class="timeline__grid" id="timeline"></div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
     <section class="section section--cta">
       <div>
@@ -187,20 +203,36 @@
     const form = document.getElementById('activity-form');
     const courseForm = document.getElementById('course-form');
     const courseSelect = document.getElementById('course-select');
-    const courseStatus = document.getElementById('course-status');
-    const dbStatus = document.getElementById('db-status');
-    const dbStatusDot = document.getElementById('db-status-dot');
-    const dbStatusText = document.getElementById('db-status-text');
-    const reloadActivitiesBtn = document.getElementById('reload-activities');
-    let draggedActivity = null;
-    let dropHandled = false;
-    let currentCourseId = null;
+      const courseStatus = document.getElementById('course-status');
+      const dbStatus = document.getElementById('db-status');
+      const dbStatusDot = document.getElementById('db-status-dot');
+      const dbStatusText = document.getElementById('db-status-text');
+      const reloadActivitiesBtn = document.getElementById('reload-activities');
+      const toggleActivityFormBtn = document.getElementById('toggle-activity-form');
+      const toggleCourseFormBtn = document.getElementById('toggle-course-form');
+      let draggedActivity = null;
+      let dropHandled = false;
+      let currentCourseId = null;
 
-    function setDbStatus(state, message) {
-      dbStatus.dataset.state = state;
-      dbStatusDot.className = `status-dot status-dot--${state}`;
-      dbStatusText.textContent = message;
-    }
+      function setDbStatus(state, message) {
+        dbStatus.dataset.state = state;
+        dbStatusDot.className = `status-dot status-dot--${state}`;
+        dbStatusText.textContent = message;
+      }
+
+      function togglePanel(button, panel) {
+        const isHidden = panel.hasAttribute('hidden');
+
+        if (isHidden) {
+          panel.removeAttribute('hidden');
+          panel.classList.remove('is-hidden');
+          button.setAttribute('aria-expanded', 'true');
+        } else {
+          panel.setAttribute('hidden', '');
+          panel.classList.add('is-hidden');
+          button.setAttribute('aria-expanded', 'false');
+        }
+      }
 
     async function refreshDbStatus() {
       setDbStatus('checking', 'Vérification de la connexion à la base...');
@@ -480,13 +512,13 @@
       }
     }
 
-    async function persistActivity(payload) {
-      try {
-        const response = await fetch('/api/activities', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+      async function persistActivity(payload) {
+        try {
+          const response = await fetch('/api/activities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
 
         if (!response.ok) {
           const error = await response.json();
@@ -496,13 +528,16 @@
         status.textContent = 'Activité enregistrée dans la base MariaDB.';
         return true;
       } catch (error) {
-        status.textContent = `⚠️ ${error.message}`;
-        return false;
+          status.textContent = `⚠️ ${error.message}`;
+          return false;
+        }
       }
-    }
 
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
+      toggleActivityFormBtn.addEventListener('click', () => togglePanel(toggleActivityFormBtn, form));
+      toggleCourseFormBtn.addEventListener('click', () => togglePanel(toggleCourseFormBtn, courseForm));
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
 
       if (!currentCourseId) {
         status.textContent = 'Sélectionnez ou créez un cours avant d’ajouter une activité.';
