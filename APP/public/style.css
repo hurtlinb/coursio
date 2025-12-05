@@ -443,7 +443,8 @@ h1 {
 }
 
 .course-modal,
-.activity-modal {
+.activity-modal,
+.reschedule-modal {
   position: fixed;
   inset: 0;
   display: flex;
@@ -453,7 +454,8 @@ h1 {
 }
 
 .course-modal[hidden],
-.activity-modal[hidden] {
+.activity-modal[hidden],
+.reschedule-modal[hidden] {
   display: none;
 }
 
