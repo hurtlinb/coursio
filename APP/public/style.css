@@ -632,6 +632,11 @@ h1 {
   gap: 8px;
 }
 
+.activity {
+  --activity-duration-width: 96px;
+  --activity-duration-gap: 8px;
+}
+
 .activity__duration {
   display: inline-flex;
   align-items: center;
@@ -639,7 +644,7 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-  width: 96px;
+  width: var(--activity-duration-width);
   flex-shrink: 0;
 }
 
@@ -686,6 +691,7 @@ h1 {
 
 .activity__details {
   color: var(--muted);
+  padding-left: calc(var(--activity-duration-width) + var(--activity-duration-gap));
 }
 
 .empty {
