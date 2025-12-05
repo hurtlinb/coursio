@@ -758,6 +758,22 @@
       const titleRow = document.createElement('div');
       titleRow.className = 'activity__title-row';
 
+      const duration = document.createElement('div');
+      duration.className = 'activity__duration';
+      duration.setAttribute('aria-label', `${activity.duration} minutes`);
+
+      const durationIcon = document.createElement('span');
+      durationIcon.className = 'activity__duration-icon';
+      durationIcon.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      durationIcon.setAttribute('aria-hidden', 'true');
+
+      const durationText = document.createElement('span');
+      durationText.textContent = `${activity.duration} min`;
+
+      duration.appendChild(durationIcon);
+      duration.appendChild(durationText);
+
       const title = document.createElement('button');
       title.type = 'button';
       title.className = 'activity__title activity__title-button';
@@ -769,6 +785,7 @@
         event.preventDefault();
         openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
       });
+      titleRow.appendChild(duration);
       titleRow.appendChild(title);
 
       const type = document.createElement('span');
@@ -792,7 +809,7 @@
 
       activityEl.appendChild(header);
 
-      const detailsText = `${activity.duration} min • ${activity.details || 'Description à compléter'}`;
+      const detailsText = activity.details || 'Description à compléter';
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
