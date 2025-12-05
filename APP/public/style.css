@@ -388,7 +388,23 @@ h1 {
 }
 
 .format-chip__icon {
-  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.format-chip__icon svg,
+.format-icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  stroke: currentColor;
+}
+
+.format-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .timeline {
@@ -543,10 +559,14 @@ h1 {
 .activity__type {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(124, 58, 237, 0.12);
-  color: var(--accent-2);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text);
   font-weight: 700;
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .activity__details {
