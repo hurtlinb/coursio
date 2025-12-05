@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const mysql = require('mysql2/promise');
 
@@ -15,6 +16,8 @@ const supportedFormats = new Set([
   'evaluation'
 ]);
 const slotToPeriod = ['matin', 'apres_midi'];
+const authSecret = process.env.AUTH_SECRET || 'dev-secret-change-me';
+const authTtlMs = 1000 * 60 * 60 * 24 * 7;
 
 function loadDbConfig() {
   const configPath = process.env.DB_CONFIG_PATH || path.join(__dirname, 'db.config.json');
@@ -40,6 +43,74 @@ function toNumber(value, fallback) {
   return Number.isFinite(numericValue) ? numericValue : fallback;
 }
 
+function parseCookies(header = '') {
+  return header.split(';').reduce((acc, cookie) => {
+    const [name, ...rest] = cookie.trim().split('=');
+    if (!name) return acc;
+    acc[name] = decodeURIComponent(rest.join('='));
+    return acc;
+  }, {});
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash || !storedHash.includes(':')) return false;
+  const [salt, hash] = storedHash.split(':');
+  const candidate = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(candidate, 'hex'));
+  } catch (error) {
+    return false;
+  }
+}
+
+function signAuthToken(payload) {
+  const enrichedPayload = { ...payload, exp: Date.now() + authTtlMs };
+  const serialized = Buffer.from(JSON.stringify(enrichedPayload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', authSecret).update(serialized).digest('base64url');
+  return `${serialized}.${signature}`;
+}
+
+function verifyAuthToken(token) {
+  if (!token) return null;
+  const [serialized, signature] = token.split('.');
+  if (!serialized || !signature) return null;
+
+  const expectedSignature = crypto.createHmac('sha256', authSecret).update(serialized).digest('base64url');
+  if (signature.length !== expectedSignature.length) {
+    return null;
+  }
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(serialized, 'base64url').toString('utf-8'));
+    if (!payload.exp || Date.now() > payload.exp) {
+      return null;
+    }
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setAuthCookie(res, teacherPayload) {
+  const token = signAuthToken(teacherPayload);
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: authTtlMs
+  });
+}
+
 const dbConfig = loadDbConfig();
 
 const effectiveDbConfig = {
@@ -59,6 +130,30 @@ function createPool() {
     connectionLimit: 10,
     queueLimit: 0
   });
+}
+
+async function getTeacherByEmail(email) {
+  const [rows] = await pool.query(
+    `SELECT id, email, display_name AS displayName, password_hash AS passwordHash
+     FROM teachers
+     WHERE email = ?
+     LIMIT 1`,
+    [email]
+  );
+
+  return rows[0] || null;
+}
+
+async function createTeacher({ email, displayName, password }) {
+  const passwordHash = hashPassword(password);
+
+  const [result] = await pool.query(
+    `INSERT INTO teachers (email, display_name, password_hash)
+     VALUES (?, ?, ?)`,
+    [email, displayName, passwordHash]
+  );
+
+  return { id: result.insertId, email, displayName };
 }
 
 async function ensureDatabaseExists() {
@@ -86,6 +181,23 @@ const defaultCourse = {
   startDate: process.env.DEFAULT_START_DATE || new Date().toISOString().slice(0, 10),
   startPeriod: process.env.DEFAULT_START_PERIOD || 'matin'
 };
+
+function getTokenFromRequest(req) {
+  const cookies = parseCookies(req.headers.cookie || '');
+  return cookies.auth_token || null;
+}
+
+function requireAuth(req, res, next) {
+  const token = getTokenFromRequest(req);
+  const teacher = verifyAuthToken(token);
+
+  if (!teacher) {
+    return res.status(401).json({ error: 'Authentification requise.' });
+  }
+
+  req.user = teacher;
+  return next();
+}
 
 function isValidDateString(value) {
   if (typeof value !== 'string') return false;
@@ -129,21 +241,29 @@ function buildExpectedHalfDays(startDate, startSlotIndex) {
   return halfDays;
 }
 
-async function getCourse(courseId) {
+async function getCourse(courseId, teacherId) {
+  const conditions = ['id = ?'];
+  const params = [courseId];
+
+  if (teacherId) {
+    conditions.push('teacher_id = ?');
+    params.push(teacherId);
+  }
+
   const [rows] = await pool.query(
-    `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
+    `SELECT id, teacher_id AS teacherId, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
             start_date AS startDate, start_period AS startPeriod
      FROM courses
-     WHERE id = ?
+     WHERE ${conditions.join(' AND ')}
      LIMIT 1`,
-    [courseId]
+    params
   );
 
   return rows[0] || null;
 }
 
-async function ensureHalfDaysForCourse(courseId) {
-  const course = await getCourse(courseId);
+async function ensureHalfDaysForCourse(courseId, teacherId) {
+  const course = await getCourse(courseId, teacherId);
   if (!course || !course.startDate || !course.startPeriod) {
     return [];
   }
@@ -178,8 +298,8 @@ async function ensureHalfDaysForCourse(courseId) {
   return expectedHalfDays;
 }
 
-async function getHalfDayForCourse(courseId, weekNumber, slotIndex) {
-  const halfDays = await ensureHalfDaysForCourse(courseId);
+async function getHalfDayForCourse(courseId, weekNumber, slotIndex, teacherId) {
+  const halfDays = await ensureHalfDaysForCourse(courseId, teacherId);
   const matchingHalfDay = halfDays.find(
     (halfDay) => halfDay.weekNumber === weekNumber && halfDay.slotIndex === slotIndex
   );
@@ -189,11 +309,12 @@ async function getHalfDayForCourse(courseId, weekNumber, slotIndex) {
   }
 
   const [rows] = await pool.query(
-    `SELECT id, session_date AS sessionDate, period
-     FROM half_days
-     WHERE course_id = ? AND week_number = ? AND slot_index = ?
+    `SELECT h.id, h.session_date AS sessionDate, h.period
+     FROM half_days h
+     INNER JOIN courses c ON h.course_id = c.id
+     WHERE h.course_id = ? AND h.week_number = ? AND h.slot_index = ? AND c.teacher_id = ?
      LIMIT 1`,
-    [courseId, weekNumber, slotIndex]
+    [courseId, weekNumber, slotIndex, teacherId]
   );
 
   if (rows.length === 0) {
@@ -203,10 +324,39 @@ async function getHalfDayForCourse(courseId, weekNumber, slotIndex) {
   return { ...matchingHalfDay, id: rows[0].id };
 }
 
+async function ensureDefaultTeacher() {
+  const defaultEmail = process.env.DEFAULT_TEACHER_EMAIL || 'demo@coursio.local';
+  const defaultPassword = process.env.DEFAULT_TEACHER_PASSWORD || 'demo1234';
+
+  const existing = await getTeacherByEmail(defaultEmail);
+  if (existing) {
+    return existing.id;
+  }
+
+  const teacher = await createTeacher({
+    email: defaultEmail,
+    displayName: defaultCourse.teacher,
+    password: defaultPassword
+  });
+
+  return teacher.id;
+}
+
 async function ensureSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS teachers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      display_name VARCHAR(255) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS courses (
       id INT AUTO_INCREMENT PRIMARY KEY,
+      teacher_id INT NULL,
       teacher VARCHAR(255) NOT NULL,
       class VARCHAR(100) NOT NULL,
       room VARCHAR(100) NOT NULL,
@@ -214,7 +364,8 @@ async function ensureSchema() {
       module_name VARCHAR(255) NOT NULL,
       start_date DATE NOT NULL,
       start_period ENUM('matin', 'apres_midi') NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_courses_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
@@ -248,6 +399,14 @@ async function ensureSchema() {
       INDEX idx_activities_half_day (half_day_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+
+  const [teacherIdColumn] = await pool.query("SHOW COLUMNS FROM courses LIKE 'teacher_id'");
+  if (teacherIdColumn.length === 0) {
+    await pool.query("ALTER TABLE courses ADD COLUMN teacher_id INT NULL AFTER id");
+    await pool.query(
+      'ALTER TABLE courses ADD CONSTRAINT fk_courses_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL'
+    );
+  }
 
   const [startDateColumn] = await pool.query("SHOW COLUMNS FROM courses LIKE 'start_date'");
   if (startDateColumn.length === 0) {
@@ -291,21 +450,22 @@ async function ensureSchema() {
   }
 }
 
-async function ensureDefaultCourse() {
+async function ensureDefaultCourse(defaultTeacherId) {
   const [existing] = await pool.query(
     'SELECT id FROM courses WHERE module_number = ? LIMIT 1',
     [defaultCourse.moduleNumber]
   );
 
   if (existing.length > 0) {
-    await ensureHalfDaysForCourse(existing[0].id);
+    await ensureHalfDaysForCourse(existing[0].id, defaultTeacherId);
     return existing[0].id;
   }
 
   const [result] = await pool.query(
-    `INSERT INTO courses (teacher, class, room, module_number, module_name, start_date, start_period)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, start_date, start_period)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      defaultTeacherId,
       defaultCourse.teacher,
       defaultCourse.className,
       defaultCourse.room,
@@ -316,15 +476,15 @@ async function ensureDefaultCourse() {
     ]
   );
 
-  await ensureHalfDaysForCourse(result.insertId);
+  await ensureHalfDaysForCourse(result.insertId, defaultTeacherId);
 
   return result.insertId;
 }
 
-async function ensureCourseExists(courseId) {
+async function ensureCourseExists(courseId, teacherId) {
   const [existing] = await pool.query(
-    'SELECT id FROM courses WHERE id = ? LIMIT 1',
-    [courseId]
+    'SELECT id FROM courses WHERE id = ? AND teacher_id = ? LIMIT 1',
+    [courseId, teacherId]
   );
 
   return existing.length > 0;
@@ -343,15 +503,80 @@ app.get('/api/status', async (_req, res) => {
   }
 });
 
-app.get('/api/courses', async (_req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   try {
-    await ensureDefaultCourse();
+    const { email, password, name } = req.body || {};
 
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Email, mot de passe et nom sont requis.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ error: 'Adresse email invalide.' });
+    }
+
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+    }
+
+    const existing = await getTeacherByEmail(normalizedEmail);
+    if (existing) {
+      return res.status(409).json({ error: 'Un compte existe déjà avec cet email.' });
+    }
+
+    const teacher = await createTeacher({ email: normalizedEmail, displayName: name.trim(), password });
+
+    setAuthCookie(res, { id: teacher.id, email: teacher.email, name: teacher.displayName });
+    res.status(201).json({ id: teacher.id, email: teacher.email, displayName: teacher.displayName });
+  } catch (error) {
+    console.error('Erreur lors de la création de compte :', error.message);
+    res.status(500).json({ error: 'Impossible de créer le compte pour le moment.' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe sont requis.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const teacher = await getTeacherByEmail(normalizedEmail);
+
+    if (!teacher || !verifyPassword(String(password), teacher.passwordHash)) {
+      return res.status(401).json({ error: 'Identifiants invalides.' });
+    }
+
+    setAuthCookie(res, { id: teacher.id, email: teacher.email, name: teacher.displayName });
+    res.json({ id: teacher.id, email: teacher.email, displayName: teacher.displayName });
+  } catch (error) {
+    console.error('Erreur lors de la connexion :', error.message);
+    res.status(500).json({ error: 'Impossible de se connecter pour le moment.' });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('auth_token');
+  res.json({ success: true });
+});
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ id: req.user.id, email: req.user.email, displayName: req.user.name });
+});
+
+app.get('/api/courses', requireAuth, async (req, res) => {
+  try {
     const [rows] = await pool.query(
       `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
               start_date AS startDate, start_period AS startPeriod, created_at AS createdAt
        FROM courses
+       WHERE teacher_id = ?
        ORDER BY created_at DESC`
+      ,
+      [req.user.id]
     );
 
     res.json(rows);
@@ -361,11 +586,11 @@ app.get('/api/courses', async (_req, res) => {
   }
 });
 
-app.post('/api/courses', async (req, res) => {
+app.post('/api/courses', requireAuth, async (req, res) => {
   try {
-    const { teacher, className, room, moduleNumber, moduleName, startDate, startSlot } = req.body;
+    const { className, room, moduleNumber, moduleName, startDate, startSlot } = req.body;
 
-    if (!teacher || !className || !room || !moduleNumber || !moduleName) {
+    if (!className || !room || !moduleNumber || !moduleName) {
       return res.status(400).json({ error: 'Tous les champs du cours sont requis.' });
     }
 
@@ -381,10 +606,11 @@ app.post('/api/courses', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO courses (teacher, class, room, module_number, module_name, start_date, start_period)
-       VALUES (?, ?, ?, ?, ?, ?, ?)` ,
+      `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, start_date, start_period)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
-        teacher.trim(),
+        req.user.id,
+        req.user.name,
         className.trim(),
         room.trim(),
         moduleNumber.trim(),
@@ -394,7 +620,7 @@ app.post('/api/courses', async (req, res) => {
       ]
     );
 
-    await ensureHalfDaysForCourse(result.insertId);
+    await ensureHalfDaysForCourse(result.insertId, req.user.id);
 
     res.status(201).json({ id: result.insertId });
   } catch (error) {
@@ -403,7 +629,7 @@ app.post('/api/courses', async (req, res) => {
   }
 });
 
-app.delete('/api/courses/:courseId', async (req, res) => {
+app.delete('/api/courses/:courseId', requireAuth, async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);
     const providedModuleNumber = (req.body?.moduleNumber || '').trim();
@@ -417,8 +643,8 @@ app.delete('/api/courses/:courseId', async (req, res) => {
     }
 
     const [courses] = await pool.query(
-      'SELECT module_number AS moduleNumber FROM courses WHERE id = ? LIMIT 1',
-      [courseId]
+      'SELECT module_number AS moduleNumber FROM courses WHERE id = ? AND teacher_id = ? LIMIT 1',
+      [courseId, req.user.id]
     );
 
     if (courses.length === 0) {
@@ -430,7 +656,7 @@ app.delete('/api/courses/:courseId', async (req, res) => {
       return res.status(400).json({ error: 'Le numéro du module ne correspond pas à ce cours.' });
     }
 
-    await pool.query('DELETE FROM courses WHERE id = ?', [courseId]);
+    await pool.query('DELETE FROM courses WHERE id = ? AND teacher_id = ?', [courseId, req.user.id]);
 
     res.json({ success: true });
   } catch (error) {
@@ -439,7 +665,7 @@ app.delete('/api/courses/:courseId', async (req, res) => {
   }
 });
 
-app.get('/api/courses/:courseId/activities', async (req, res) => {
+app.get('/api/courses/:courseId/activities', requireAuth, async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);
 
@@ -447,7 +673,7 @@ app.get('/api/courses/:courseId/activities', async (req, res) => {
       return res.status(400).json({ error: 'Identifiant de cours invalide.' });
     }
 
-    const courseExists = await ensureCourseExists(courseId);
+    const courseExists = await ensureCourseExists(courseId, req.user.id);
     if (!courseExists) {
       return res.status(404).json({ error: 'Cours introuvable.' });
     }
@@ -463,9 +689,10 @@ app.get('/api/courses/:courseId/activities', async (req, res) => {
               h.slot_index AS slotIndex
        FROM activities a
        INNER JOIN half_days h ON a.half_day_id = h.id
-       WHERE h.course_id = ?
+       INNER JOIN courses c ON h.course_id = c.id
+       WHERE h.course_id = ? AND c.teacher_id = ?
        ORDER BY h.week_number, h.slot_index, a.position IS NULL, a.position, a.id`,
-      [courseId]
+      [courseId, req.user.id]
     );
 
     const activities = rows.map((row) => ({
@@ -486,7 +713,7 @@ app.get('/api/courses/:courseId/activities', async (req, res) => {
   }
 });
 
-app.get('/api/courses/:courseId/half-days', async (req, res) => {
+app.get('/api/courses/:courseId/half-days', requireAuth, async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);
 
@@ -494,19 +721,20 @@ app.get('/api/courses/:courseId/half-days', async (req, res) => {
       return res.status(400).json({ error: 'Identifiant de cours invalide.' });
     }
 
-    const course = await getCourse(courseId);
+    const course = await getCourse(courseId, req.user.id);
     if (!course) {
       return res.status(404).json({ error: 'Cours introuvable.' });
     }
 
-    await ensureHalfDaysForCourse(courseId);
+    await ensureHalfDaysForCourse(courseId, req.user.id);
 
     const [halfDays] = await pool.query(
-      `SELECT id, week_number AS weekNumber, slot_index AS slotIndex, session_date AS sessionDate, period
-       FROM half_days
-       WHERE course_id = ?
-       ORDER BY week_number, slot_index`,
-      [courseId]
+      `SELECT h.id, h.week_number AS weekNumber, h.slot_index AS slotIndex, h.session_date AS sessionDate, h.period
+       FROM half_days h
+       INNER JOIN courses c ON h.course_id = c.id
+       WHERE h.course_id = ? AND c.teacher_id = ?
+       ORDER BY h.week_number, h.slot_index`,
+      [courseId, req.user.id]
     );
 
     res.json({
@@ -523,7 +751,7 @@ app.get('/api/courses/:courseId/half-days', async (req, res) => {
   }
 });
 
-app.post('/api/activities', async (req, res) => {
+app.post('/api/activities', requireAuth, async (req, res) => {
   try {
     const { name, week, slot, format, details, duration, materials, courseId } = req.body;
 
@@ -536,8 +764,8 @@ app.post('/api/activities', async (req, res) => {
       return res.status(400).json({ error: 'Un cours valide est requis pour créer une activité.' });
     }
 
-    const courseExists = await ensureCourseExists(selectedCourseId);
-    if (!courseExists) {
+    const ownsCourse = await ensureCourseExists(selectedCourseId, req.user.id);
+    if (!ownsCourse) {
       return res.status(404).json({ error: 'Cours introuvable.' });
     }
 
@@ -565,7 +793,7 @@ app.post('/api/activities', async (req, res) => {
     const description = (details || '').trim() || 'Description à compléter';
     const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() : null;
 
-    const halfDay = await getHalfDayForCourse(selectedCourseId, weekNumber, slotIndex);
+    const halfDay = await getHalfDayForCourse(selectedCourseId, weekNumber, slotIndex, req.user.id);
     if (!halfDay) {
       return res.status(500).json({ error: 'Impossible de déterminer le demi-jour cible.' });
     }
@@ -588,7 +816,7 @@ app.post('/api/activities', async (req, res) => {
   }
 });
 
-app.patch('/api/activities/:activityId', async (req, res) => {
+app.patch('/api/activities/:activityId', requireAuth, async (req, res) => {
   try {
     const activityId = Number(req.params.activityId);
     const { name, week, slot, format, details, duration, materials, courseId } = req.body;
@@ -601,9 +829,10 @@ app.patch('/api/activities/:activityId', async (req, res) => {
       `SELECT a.id, a.half_day_id AS halfDayId, h.course_id AS courseId
        FROM activities a
        INNER JOIN half_days h ON a.half_day_id = h.id
-       WHERE a.id = ?
+       INNER JOIN courses c ON h.course_id = c.id
+       WHERE a.id = ? AND c.teacher_id = ?
        LIMIT 1`,
-      [activityId]
+      [activityId, req.user.id]
     );
 
     if (existingActivities.length === 0) {
@@ -644,7 +873,7 @@ app.patch('/api/activities/:activityId', async (req, res) => {
     const description = (details || '').trim() || 'Description à compléter';
     const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() : null;
 
-    const targetHalfDay = await getHalfDayForCourse(existingActivity.courseId, weekNumber, slotIndex);
+    const targetHalfDay = await getHalfDayForCourse(existingActivity.courseId, weekNumber, slotIndex, req.user.id);
     if (!targetHalfDay) {
       return res.status(500).json({ error: "Impossible de déterminer le demi-jour cible." });
     }
@@ -698,7 +927,7 @@ app.patch('/api/activities/:activityId', async (req, res) => {
   }
 });
 
-app.delete('/api/activities/:activityId', async (req, res) => {
+app.delete('/api/activities/:activityId', requireAuth, async (req, res) => {
   try {
     const activityId = Number(req.params.activityId);
 
@@ -707,8 +936,13 @@ app.delete('/api/activities/:activityId', async (req, res) => {
     }
 
     const [existingActivities] = await pool.query(
-      'SELECT id FROM activities WHERE id = ? LIMIT 1',
-      [activityId]
+      `SELECT a.id
+       FROM activities a
+       INNER JOIN half_days h ON a.half_day_id = h.id
+       INNER JOIN courses c ON h.course_id = c.id
+       WHERE a.id = ? AND c.teacher_id = ?
+       LIMIT 1`,
+      [activityId, req.user.id]
     );
 
     if (existingActivities.length === 0) {
@@ -724,7 +958,7 @@ app.delete('/api/activities/:activityId', async (req, res) => {
   }
 });
 
-app.patch('/api/activities/:activityId/move', async (req, res) => {
+app.patch('/api/activities/:activityId/move', requireAuth, async (req, res) => {
   try {
     const activityId = Number(req.params.activityId);
     const { week, slot, courseId } = req.body;
@@ -737,9 +971,10 @@ app.patch('/api/activities/:activityId/move', async (req, res) => {
       `SELECT a.id, h.course_id AS courseId
        FROM activities a
        INNER JOIN half_days h ON a.half_day_id = h.id
-       WHERE a.id = ?
+       INNER JOIN courses c ON h.course_id = c.id
+       WHERE a.id = ? AND c.teacher_id = ?
        LIMIT 1`,
-      [activityId]
+      [activityId, req.user.id]
     );
 
     if (existingActivities.length === 0) {
@@ -762,7 +997,7 @@ app.patch('/api/activities/:activityId/move', async (req, res) => {
       return res.status(400).json({ error: 'Le créneau est invalide.' });
     }
 
-    const halfDay = await getHalfDayForCourse(activityCourseId, weekNumber, slotIndex);
+    const halfDay = await getHalfDayForCourse(activityCourseId, weekNumber, slotIndex, req.user.id);
     if (!halfDay) {
       return res.status(500).json({ error: "Impossible de déterminer le nouveau demi-jour." });
     }
@@ -809,7 +1044,9 @@ async function bootstrap() {
     pool = createPool();
 
     await ensureSchema();
-    await ensureDefaultCourse();
+    const defaultTeacherId = await ensureDefaultTeacher();
+    await pool.query('UPDATE courses SET teacher_id = ? WHERE teacher_id IS NULL', [defaultTeacherId]);
+    await ensureDefaultCourse(defaultTeacherId);
 
     app.listen(PORT, () => {
       console.log(`App running at http://localhost:${PORT}`);

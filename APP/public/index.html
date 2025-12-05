@@ -8,6 +8,56 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <div class="session-banner" id="session-banner" hidden>
+    <div>
+      <p class="label">Connecté</p>
+      <p class="muted" id="session-user"></p>
+    </div>
+    <button class="btn btn-ghost" id="logout-button" type="button">Se déconnecter</button>
+  </div>
+
+  <div class="auth-overlay is-hidden" id="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
+    <div class="auth-card">
+      <div class="auth-card__header">
+        <p class="label" id="auth-title">Bienvenue sur Coursio</p>
+        <p class="muted" id="auth-subtitle">Connectez-vous ou créez un compte enseignant.</p>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab is-active" id="tab-login" type="button">Connexion</button>
+        <button class="auth-tab" id="tab-register" type="button">Créer un compte</button>
+      </div>
+      <form class="auth-form" id="login-form">
+        <label class="form-field">
+          <span>Email</span>
+          <input type="email" id="login-email" autocomplete="username" required>
+        </label>
+        <label class="form-field">
+          <span>Mot de passe</span>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn-primary" type="submit">Se connecter</button>
+      </form>
+
+      <form class="auth-form is-hidden" id="register-form">
+        <label class="form-field">
+          <span>Nom complet</span>
+          <input type="text" id="register-name" autocomplete="name" required>
+        </label>
+        <label class="form-field">
+          <span>Email</span>
+          <input type="email" id="register-email" autocomplete="email" required>
+        </label>
+        <label class="form-field">
+          <span>Mot de passe</span>
+          <input type="password" id="register-password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <button class="btn btn-primary" type="submit">Créer mon compte</button>
+      </form>
+
+      <p class="muted" id="auth-status" aria-live="polite"></p>
+    </div>
+  </div>
+
   <main class="sections">
     <section class="section planner" id="demo">
       <div class="planner__intro">
@@ -134,10 +184,10 @@
 
       <form class="course-form" id="course-form">
         <div class="form-row">
-          <label class="form-field">
+          <div class="form-field form-field--static">
             <span>Enseignant</span>
-            <input type="text" id="course-teacher" placeholder="Nom de l'enseignant" required>
-          </label>
+            <p id="course-teacher" class="form-static">—</p>
+          </div>
           <label class="form-field">
             <span>Classe</span>
             <input type="text" id="course-class" placeholder="Ex : BTS SIO" required>
@@ -235,10 +285,24 @@
       return weeksSchedule;
     }
 
+    function createEmptySchedule() {
+      return buildSchedule();
+    }
+
     let schedule = buildSchedule();
     let courseHalfDays = [];
 
     const timeline = document.getElementById('timeline');
+    const authOverlay = document.getElementById('auth-overlay');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const authStatus = document.getElementById('auth-status');
+    const sessionBanner = document.getElementById('session-banner');
+    const sessionUser = document.getElementById('session-user');
+    const logoutButton = document.getElementById('logout-button');
+    const courseTeacherDisplay = document.getElementById('course-teacher');
     const activityForm = document.getElementById('activity-form');
     const activityModal = document.getElementById('activity-modal');
     const activityModalBackdrop = document.querySelector('[data-close-activity-modal]');
@@ -259,12 +323,76 @@
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openCourseModalBtn = document.getElementById('open-course-modal');
+    const loginEmailInput = document.getElementById('login-email');
+    const registerNameInput = document.getElementById('register-name');
+    const registerEmailInput = document.getElementById('register-email');
+    const registerPasswordInput = document.getElementById('register-password');
+    const loginPasswordInput = document.getElementById('login-password');
     let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
     let editingActivity = null;
     let creationWeekIndex = null;
+    let currentUser = null;
+
+    function showAuthOverlay(mode = 'login', message = '') {
+      authStatus.textContent = message;
+      authOverlay.classList.remove('is-hidden');
+      authOverlay.removeAttribute('hidden');
+
+      if (mode === 'register') {
+        registerForm.classList.remove('is-hidden');
+        loginForm.classList.add('is-hidden');
+        tabRegister.classList.add('is-active');
+        tabLogin.classList.remove('is-active');
+        registerNameInput.focus();
+      } else {
+        loginForm.classList.remove('is-hidden');
+        registerForm.classList.add('is-hidden');
+        tabLogin.classList.add('is-active');
+        tabRegister.classList.remove('is-active');
+        loginEmailInput.focus();
+      }
+    }
+
+    function hideAuthOverlay() {
+      authOverlay.classList.add('is-hidden');
+      authOverlay.setAttribute('hidden', '');
+      authStatus.textContent = '';
+    }
+
+    function updateSessionBanner() {
+      if (!currentUser) {
+        sessionBanner.setAttribute('hidden', '');
+        sessionUser.textContent = '';
+        courseTeacherDisplay.textContent = '—';
+        return;
+      }
+
+      sessionUser.textContent = `${currentUser.displayName || currentUser.name} (${currentUser.email})`;
+      courseTeacherDisplay.textContent = currentUser.displayName || currentUser.name;
+      sessionBanner.removeAttribute('hidden');
+    }
+
+    function setCurrentUser(user) {
+      currentUser = user;
+      updateSessionBanner();
+    }
+
+    function handleUnauthorized(message = 'Connectez-vous pour continuer.') {
+      setCurrentUser(null);
+      showAuthOverlay('login', message);
+    }
+
+    async function authorizedFetch(url, options = {}) {
+      const response = await fetch(url, options);
+      if (response.status === 401) {
+        handleUnauthorized('Votre session a expiré.');
+        throw new Error('UNAUTHORIZED');
+      }
+      return response;
+    }
 
     function getFormatIconMarkup(format) {
       return formatIcons[format] || formatIcons.presentation;
@@ -356,13 +484,18 @@
     }
 
       function openCourseModal() {
+        if (!currentUser) {
+          showAuthOverlay('login', 'Connectez-vous pour créer un cours.');
+          return;
+        }
         courseForm.reset();
         courseStatus.textContent = '';
         courseModal.removeAttribute('hidden');
         courseModal.classList.remove('is-hidden');
         courseStartDateInput.value = new Date().toISOString().slice(0, 10);
         courseStartSlotSelect.value = 0;
-        document.getElementById('course-teacher').focus();
+        courseTeacherDisplay.textContent = currentUser?.displayName || currentUser?.name || '—';
+        document.getElementById('course-class').focus();
       }
 
       function closeCourseModal() {
@@ -394,10 +527,15 @@
     }
 
     async function loadCourses() {
+      if (!currentUser) {
+        courseStatus.textContent = 'Connectez-vous pour afficher vos cours.';
+        return;
+      }
+
       courseStatus.textContent = 'Chargement des cours...';
 
       try {
-        const response = await fetch('/api/courses');
+        const response = await authorizedFetch('/api/courses');
         if (!response.ok) {
           throw new Error();
         }
@@ -417,6 +555,7 @@
         currentCourseId = Number(courseSelect.value);
         await loadActivitiesForCourse(currentCourseId);
       } catch (error) {
+        if (error.message === 'UNAUTHORIZED') return;
         courseStatus.textContent = 'Impossible de charger les cours.';
       }
     }
@@ -458,7 +597,7 @@
       courseStatus.textContent = 'Suppression du cours en cours...';
 
       try {
-        const response = await fetch(`/api/courses/${course.id}`, {
+        const response = await authorizedFetch(`/api/courses/${course.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ moduleNumber: moduleNumberInput })
@@ -473,6 +612,7 @@
         courseStatus.textContent = 'Cours supprimé.';
         await loadCourses();
       } catch (error) {
+        if (error.message === 'UNAUTHORIZED') return;
         courseStatus.textContent = `⚠️ ${error.message}`;
       }
     }
@@ -725,12 +865,12 @@
     }
 
     async function loadActivitiesForCourse(courseId) {
-      if (!courseId) return;
+      if (!courseId || !currentUser) return;
 
       courseStatus.textContent = 'Chargement des activités du cours...';
 
       try {
-        const halfDayResponse = await fetch(`/api/courses/${courseId}/half-days`);
+        const halfDayResponse = await authorizedFetch(`/api/courses/${courseId}/half-days`);
         if (!halfDayResponse.ok) {
           throw new Error();
         }
@@ -740,7 +880,7 @@
         schedule = buildSchedule(courseHalfDays);
         renderSchedule();
 
-        const response = await fetch(`/api/courses/${courseId}/activities`);
+        const response = await authorizedFetch(`/api/courses/${courseId}/activities`);
         if (!response.ok) {
           throw new Error();
         }
@@ -766,13 +906,14 @@
         courseStatus.textContent = '';
         renderSchedule();
       } catch (error) {
+        if (error.message === 'UNAUTHORIZED') return;
         courseStatus.textContent = 'Impossible de charger les activités du cours.';
       }
     }
 
       async function persistActivity(payload) {
         try {
-          const response = await fetch('/api/activities', {
+          const response = await authorizedFetch('/api/activities', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -787,6 +928,7 @@
         activityStatus.textContent = 'Activité enregistrée dans la base MariaDB.';
         return body.activityId;
       } catch (error) {
+          if (error.message === 'UNAUTHORIZED') return null;
           activityStatus.textContent = `⚠️ ${error.message}`;
           return null;
         }
@@ -794,7 +936,7 @@
 
       async function updateActivity(activityId, payload) {
         try {
-          const response = await fetch(`/api/activities/${activityId}`, {
+          const response = await authorizedFetch(`/api/activities/${activityId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -808,6 +950,7 @@
           activityStatus.textContent = 'Activité mise à jour.';
           return true;
         } catch (error) {
+          if (error.message === 'UNAUTHORIZED') return false;
           activityStatus.textContent = `⚠️ ${error.message}`;
           return false;
         }
@@ -815,7 +958,7 @@
 
       async function deleteActivityById(activityId) {
         try {
-          const response = await fetch(`/api/activities/${activityId}`, {
+          const response = await authorizedFetch(`/api/activities/${activityId}`, {
             method: 'DELETE'
           });
 
@@ -827,6 +970,7 @@
           activityStatus.textContent = 'Activité supprimée.';
           return true;
         } catch (error) {
+          if (error.message === 'UNAUTHORIZED') return false;
           activityStatus.textContent = `⚠️ ${error.message}`;
           return false;
         }
@@ -835,7 +979,7 @@
       async function moveActivity(activityId, weekNumber, slotIndex) {
         if (!activityId) return Promise.resolve();
 
-        return fetch(`/api/activities/${activityId}/move`, {
+        return authorizedFetch(`/api/activities/${activityId}/move`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ week: weekNumber, slot: slotIndex, courseId: currentCourseId })
@@ -855,6 +999,91 @@
       }
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
+
+      tabLogin.addEventListener('click', () => showAuthOverlay('login'));
+      tabRegister.addEventListener('click', () => showAuthOverlay('register'));
+
+      loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        authStatus.textContent = 'Connexion en cours...';
+
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: loginEmailInput.value.trim(),
+              password: loginPasswordInput.value
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Impossible de se connecter.');
+          }
+
+          const user = await response.json();
+          setCurrentUser(user);
+          hideAuthOverlay();
+          loadCourses();
+        } catch (error) {
+          authStatus.textContent = `⚠️ ${error.message}`;
+        }
+      });
+
+      registerForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        authStatus.textContent = 'Création du compte...';
+
+        try {
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: registerEmailInput.value.trim(),
+              password: registerPasswordInput.value,
+              name: registerNameInput.value.trim()
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Impossible de créer le compte.');
+          }
+
+          const user = await response.json();
+          setCurrentUser(user);
+          hideAuthOverlay();
+          loadCourses();
+        } catch (error) {
+          authStatus.textContent = `⚠️ ${error.message}`;
+        }
+      });
+
+      logoutButton.addEventListener('click', async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        setCurrentUser(null);
+        schedule = createEmptySchedule();
+        renderSchedule();
+        showAuthOverlay('login', 'Vous êtes déconnecté.');
+      });
+
+      async function checkSession() {
+        try {
+          const response = await fetch('/api/auth/me');
+          if (!response.ok) {
+            throw new Error();
+          }
+
+          const user = await response.json();
+          setCurrentUser(user);
+          hideAuthOverlay();
+          await loadCourses();
+        } catch (error) {
+          setCurrentUser(null);
+          showAuthOverlay('login');
+        }
+      }
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           if (!courseModal.hasAttribute('hidden')) {
@@ -952,7 +1181,6 @@
 
       try {
         const payload = {
-          teacher: document.getElementById('course-teacher').value.trim(),
           className: document.getElementById('course-class').value.trim(),
           room: document.getElementById('course-room').value.trim(),
           moduleNumber: document.getElementById('course-number').value.trim(),
@@ -961,7 +1189,7 @@
           startSlot: courseStartSlotSelect.value
         };
 
-        const response = await fetch('/api/courses', {
+        const response = await authorizedFetch('/api/courses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -979,11 +1207,16 @@
         await loadCourses();
         closeCourseModal();
       } catch (error) {
+        if (error.message === 'UNAUTHORIZED') return;
         courseStatus.textContent = `⚠️ ${error.message}`;
       }
     });
 
     courseSelect.addEventListener('change', async (event) => {
+      if (!currentUser) {
+        showAuthOverlay('login');
+        return;
+      }
       currentCourseId = Number(event.target.value);
       await loadActivitiesForCourse(currentCourseId);
     });
@@ -991,7 +1224,7 @@
     renderFormatIcons();
     initializeFormatSelector();
     renderSchedule();
-    loadCourses();
+    checkSession();
   </script>
 </body>
 </html>
