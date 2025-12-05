@@ -516,6 +516,19 @@ h1 {
   gap: 10px;
 }
 
+.week-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.week-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .slots {
   display: flex;
   flex-direction: column;

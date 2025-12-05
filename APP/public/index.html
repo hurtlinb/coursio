@@ -44,10 +44,6 @@
                 <h3>5 semaines, 3 demi-jours</h3>
                 <p class="muted">Chaque carte représente une semaine. Ajoutez vos activités pour remplir les créneaux.</p>
               </div>
-              <button class="icon-button" id="open-activity-modal" type="button" aria-haspopup="dialog">
-                <span aria-hidden="true">+</span>
-                <span class="sr-only">Ajouter une activité</span>
-              </button>
             </div>
             <div class="timeline__grid" id="timeline"></div>
           </div>
@@ -72,26 +68,6 @@
           <span>Nom de l'activité</span>
           <input type="text" id="activity-name" placeholder="Ex : Atelier de prototypage" required>
         </label>
-
-        <div class="form-row">
-          <label class="form-field">
-            <span>Semaine (1 à 5)</span>
-            <select id="week-select">
-              <option value="1">Semaine 1</option>
-              <option value="2">Semaine 2</option>
-              <option value="3">Semaine 3</option>
-              <option value="4">Semaine 4</option>
-              <option value="5">Semaine 5</option>
-            </select>
-          </label>
-          <label class="form-field">
-            <span>Demi-jour</span>
-            <select id="slot-select">
-              <option value="0">Matin</option>
-              <option value="1">Après-midi</option>
-            </select>
-          </label>
-        </div>
 
         <label class="form-field">
           <span>Format</span>
@@ -284,15 +260,13 @@
     const deleteCourseBtn = document.getElementById('delete-course');
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
-    const openActivityModalBtn = document.getElementById('open-activity-modal');
     const openCourseModalBtn = document.getElementById('open-course-modal');
-    const slotSelect = document.getElementById('slot-select');
-    const weekSelect = document.getElementById('week-select');
     let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
     let editingActivity = null;
+    let creationWeekIndex = null;
 
     function getFormatIconMarkup(format) {
       return formatIcons[format] || formatIcons.presentation;
@@ -343,13 +317,11 @@
     function resetActivityFormDefaults() {
       activityForm.reset();
       document.getElementById('duration').value = 60;
-      weekSelect.value = 1;
-      refreshSlotSelectOptions();
-      slotSelect.value = 0;
       selectFormat('presentation');
     }
 
-    function openActivityModal() {
+    function openActivityModal(weekIndex) {
+      creationWeekIndex = weekIndex;
       setActivityFormMode('create');
       resetActivityFormDefaults();
       activityStatus.textContent = '';
@@ -359,6 +331,7 @@
     }
 
     function closeActivityModal() {
+      creationWeekIndex = null;
       activityModal.setAttribute('hidden', '');
       activityModal.classList.add('is-hidden');
       setActivityFormMode('create');
@@ -367,6 +340,7 @@
     function openActivityEditModal(activity, weekIndex, slotIndex, activityIndex) {
       if (!activity) return;
 
+      creationWeekIndex = weekIndex;
       editingActivity = { id: activity.id, weekIndex, slotIndex, activityIndex };
       setActivityFormMode('edit');
 
@@ -375,9 +349,6 @@
       document.getElementById('details').value = activity.details || '';
       document.getElementById('materials').value = activity.materials || '';
 
-      weekSelect.value = weekIndex + 1;
-      refreshSlotSelectOptions();
-      slotSelect.value = slotIndex;
       selectFormat(activity.type);
 
       activityStatus.textContent = '';
@@ -400,33 +371,6 @@
         courseModal.setAttribute('hidden', '');
         courseModal.classList.add('is-hidden');
       }
-
-      function getSlotsForWeek(weekNumber) {
-        return courseHalfDays
-          .filter((halfDay) => halfDay.weekNumber === weekNumber)
-          .sort((a, b) => a.slotIndex - b.slotIndex);
-      }
-
-      function refreshSlotSelectOptions() {
-        const selectedWeek = Number(weekSelect.value) || 1;
-        const slots = getSlotsForWeek(selectedWeek);
-        slotSelect.innerHTML = '';
-
-        const slotList = slots.length > 0
-          ? slots
-          : Array.from({ length: 3 }, (_, index) => ({
-              slotIndex: index,
-              sessionDate: null,
-              period: index % 2 === 0 ? 'matin' : 'apres_midi'
-            }));
-
-        slotList.forEach((halfDay) => {
-          const option = document.createElement('option');
-          option.value = halfDay.slotIndex;
-          option.textContent = halfDay.sessionDate ? formatHalfDayLabel(halfDay) : `Créneau ${halfDay.slotIndex + 1}`;
-        slotSelect.appendChild(option);
-      });
-    }
 
     function fillCourseSelect(courses) {
       coursesCache = courses;
@@ -468,7 +412,6 @@
           currentCourseId = null;
           schedule = createEmptySchedule();
           renderSchedule();
-          refreshSlotSelectOptions();
           return;
         }
 
@@ -715,6 +658,19 @@
       return slotContent;
     }
 
+    function findNextSlotIndex(weekIndex) {
+      const weekSlots = schedule[weekIndex]?.slots || [];
+      let lastFilledSlot = -1;
+
+      weekSlots.forEach((slot, index) => {
+        if (slot.activities.length > 0) {
+          lastFilledSlot = index;
+        }
+      });
+
+      return lastFilledSlot === -1 ? 0 : lastFilledSlot;
+    }
+
     function renderSchedule() {
       timeline.innerHTML = '';
 
@@ -722,7 +678,11 @@
         const weekCard = document.createElement('article');
         weekCard.className = 'week-card';
 
-        const header = document.createElement('header');
+        const header = document.createElement('div');
+        header.className = 'week-card__header';
+
+        const headerMeta = document.createElement('div');
+        headerMeta.className = 'week-card__meta';
 
         const weekLabel = document.createElement('p');
         weekLabel.className = 'label';
@@ -732,8 +692,19 @@
         weekDescription.className = 'muted';
         weekDescription.textContent = '2 demi-jours prêts à accueillir vos activités';
 
-        header.appendChild(weekLabel);
-        header.appendChild(weekDescription);
+        headerMeta.appendChild(weekLabel);
+        headerMeta.appendChild(weekDescription);
+
+        const addActivityBtn = document.createElement('button');
+        addActivityBtn.className = 'icon-button';
+        addActivityBtn.type = 'button';
+        addActivityBtn.setAttribute('aria-haspopup', 'dialog');
+        addActivityBtn.setAttribute('aria-label', `Ajouter une activité pour la semaine ${week.week}`);
+        addActivityBtn.innerHTML = '<span aria-hidden="true">+</span>';
+        addActivityBtn.addEventListener('click', () => openActivityModal(weekIndex));
+
+        header.appendChild(headerMeta);
+        header.appendChild(addActivityBtn);
 
         const slotsContainer = document.createElement('div');
         slotsContainer.className = 'slots';
@@ -774,7 +745,6 @@
         courseHalfDays = halfDays || [];
         schedule = buildSchedule(courseHalfDays);
         renderSchedule();
-        refreshSlotSelectOptions();
 
         const response = await fetch(`/api/courses/${courseId}/activities`);
         if (!response.ok) {
@@ -883,7 +853,6 @@
         });
       }
 
-      openActivityModalBtn.addEventListener('click', openActivityModal);
       closeActivityModalBtn.addEventListener('click', closeActivityModal);
       activityModalBackdrop.addEventListener('click', closeActivityModal);
       openCourseModalBtn.addEventListener('click', openCourseModal);
@@ -892,7 +861,6 @@
       }
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
-      weekSelect.addEventListener('change', refreshSlotSelectOptions);
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           if (!courseModal.hasAttribute('hidden')) {
@@ -930,8 +898,6 @@
       }
 
       const name = document.getElementById('activity-name').value.trim();
-      const weekIndex = Number(weekSelect.value) - 1;
-      const slotIndex = Number(slotSelect.value);
       const type = document.getElementById('type-select').value;
       const duration = Number(document.getElementById('duration').value) || 0;
       const details = document.getElementById('details').value.trim();
@@ -939,10 +905,18 @@
 
       if (!name || duration <= 0) return;
 
+      const targetWeekIndex = editingActivity ? editingActivity.weekIndex : creationWeekIndex;
+      if (targetWeekIndex === null) {
+        activityStatus.textContent = 'Choisissez une semaine pour ajouter une activité.';
+        return;
+      }
+
+      const targetSlotIndex = editingActivity ? editingActivity.slotIndex : findNextSlotIndex(targetWeekIndex);
+
       const activityPayload = {
         name,
-        week: weekIndex + 1,
-        slot: slotIndex,
+        week: targetWeekIndex + 1,
+        slot: targetSlotIndex,
         format: type,
         details,
         duration,
@@ -955,17 +929,7 @@
         updateActivity(editingActivity.id, activityPayload).then((success) => {
           if (success) {
             const updatedActivity = { id: editingActivity.id, name, type, details, duration, materials };
-            const targetWeekIndex = weekIndex;
-            const targetSlotIndex = slotIndex;
-            const staysInSameSlot =
-              targetWeekIndex === editingActivity.weekIndex && targetSlotIndex === editingActivity.slotIndex;
-
-            if (staysInSameSlot) {
-              schedule[targetWeekIndex].slots[targetSlotIndex].activities[editingActivity.activityIndex] = updatedActivity;
-            } else {
-              removeActivityFromSchedule(editingActivity);
-              addActivityToSchedule(updatedActivity, targetWeekIndex, targetSlotIndex);
-            }
+            schedule[targetWeekIndex].slots[targetSlotIndex].activities[editingActivity.activityIndex] = updatedActivity;
 
             renderSchedule();
             resetActivityFormDefaults();
@@ -975,7 +939,7 @@
         return;
       }
 
-      const targetSlot = schedule[weekIndex].slots[slotIndex];
+      const targetSlot = schedule[targetWeekIndex].slots[targetSlotIndex];
       const activity = { name, type, details, duration, materials };
       activityStatus.textContent = 'Enregistrement de l’activité en cours...';
       persistActivity(activityPayload).then((activityId) => {
@@ -1033,7 +997,6 @@
     renderFormatIcons();
     initializeFormatSelector();
     renderSchedule();
-    refreshSlotSelectOptions();
     loadCourses();
   </script>
 </body>
