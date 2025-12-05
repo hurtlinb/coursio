@@ -13,6 +13,12 @@
       <div class="planner__intro">
         <div class="section__title">Planifiez vos activités</div>
         <p class="section__subtitle">Par défaut, chaque cours est structuré en 5 semaines de 3 demi-jours. Utilisez le formulaire pour ajouter vos activités et visualiser immédiatement leur placement.</p>
+        <p class="section__subtitle"></p>
+        <div class="pill-list">
+          <span class="pill">5 semaines</span>
+          <span class="pill">3 demi-jours / semaine</span>
+          <span class="pill">Activités illimitées</span>
+        </div>
       </div>
 
       <div class="course-toolbar" aria-label="Sélection des cours">
@@ -186,12 +192,7 @@
     </div>
   </div>
 
-  <footer class="footer">
-    <div class="connection-status" id="db-status" aria-live="polite">
-      <span class="status-dot status-dot--checking" id="db-status-dot" aria-hidden="true"></span>
-      <span id="db-status-text">Vérification de la connexion à la base...</span>
-    </div>
-  </footer>
+  <footer class="footer"></footer>
 
   <script>
     const weeks = 5;
@@ -257,9 +258,6 @@
     const courseStartDateInput = document.getElementById('course-start-date');
     const courseStartSlotSelect = document.getElementById('course-start-slot');
     const deleteCourseBtn = document.getElementById('delete-course');
-    const dbStatus = document.getElementById('db-status');
-    const dbStatusDot = document.getElementById('db-status-dot');
-    const dbStatusText = document.getElementById('db-status-text');
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openActivityModalBtn = document.getElementById('open-activity-modal');
@@ -270,12 +268,6 @@
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
-
-      function setDbStatus(state, message) {
-        dbStatus.dataset.state = state;
-        dbStatusDot.className = `status-dot status-dot--${state}`;
-        dbStatusText.textContent = message;
-      }
 
       function resetActivityFormDefaults() {
         activityForm.reset();
@@ -339,27 +331,6 @@
           slotSelect.appendChild(option);
         });
       }
-
-    async function refreshDbStatus() {
-      setDbStatus('checking', 'Vérification de la connexion à la base...');
-
-      try {
-        const response = await fetch('/api/status');
-
-        if (!response.ok) {
-          throw new Error();
-        }
-
-        const payload = await response.json();
-        if (payload.database) {
-          setDbStatus('ok', 'Connexion à la base de données établie.');
-        } else {
-          setDbStatus('error', 'Base de données inaccessible.');
-        }
-      } catch (error) {
-        setDbStatus('error', 'Base de données inaccessible.');
-      }
-    }
 
     function fillCourseSelect(courses) {
       coursesCache = courses;
@@ -837,7 +808,6 @@
       await loadActivitiesForCourse(currentCourseId);
     });
 
-    refreshDbStatus();
     renderSchedule();
     refreshSlotSelectOptions();
     loadCourses();

@@ -322,6 +322,20 @@ h1 {
 .status-dot--checking {
   background: #eab308;
   box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25);
+.pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill { 
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .panel-card {
