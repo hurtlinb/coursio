@@ -15,6 +15,10 @@ const supportedFormats = new Set([
   'evaluation'
 ]);
 const slotToPeriod = ['matin', 'apres_midi'];
+const periodToSlot = new Map([
+  ['matin', 0],
+  ['apres_midi', 1]
+]);
 
 function loadDbConfig() {
   const configPath = process.env.DB_CONFIG_PATH || path.join(__dirname, 'db.config.json');
@@ -107,15 +111,24 @@ function computeSessionDate(weekNumber) {
   return sessionDate.toISOString().slice(0, 10);
 }
 
-async function getHalfDayId(courseId, sessionDate, period) {
+async function getHalfDayId(courseId, weekNumber, sessionDate, period) {
   const [result] = await pool.query(
-    `INSERT INTO half_days (course_id, session_date, period)
-     VALUES (?, ?, ?)
+    `INSERT INTO half_days (course_id, week_number, session_date, period)
+     VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
-    [courseId, sessionDate, period]
+    [courseId, weekNumber, sessionDate, period]
   );
 
   return result.insertId;
+}
+
+async function ensureCourseExists(courseId) {
+  const [existing] = await pool.query(
+    'SELECT id FROM courses WHERE id = ? LIMIT 1',
+    [courseId]
+  );
+
+  return existing.length > 0;
 }
 
 app.get('/api/status', async (_req, res) => {
@@ -131,12 +144,107 @@ app.get('/api/status', async (_req, res) => {
   }
 });
 
+app.get('/api/courses', async (_req, res) => {
+  try {
+    await ensureDefaultCourse();
+
+    const [rows] = await pool.query(
+      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName, created_at AS createdAt
+       FROM courses
+       ORDER BY created_at DESC`
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des cours :', error.message);
+    res.status(500).json({ error: 'Impossible de récupérer les cours pour le moment.' });
+  }
+});
+
+app.post('/api/courses', async (req, res) => {
+  try {
+    const { teacher, className, room, moduleNumber, moduleName } = req.body;
+
+    if (!teacher || !className || !room || !moduleNumber || !moduleName) {
+      return res.status(400).json({ error: 'Tous les champs du cours sont requis.' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO courses (teacher, class, room, module_number, module_name)
+       VALUES (?, ?, ?, ?, ?)` ,
+      [teacher.trim(), className.trim(), room.trim(), moduleNumber.trim(), moduleName.trim()]
+    );
+
+    res.status(201).json({ id: result.insertId });
+  } catch (error) {
+    console.error('Erreur lors de la création du cours :', error.message);
+    res.status(500).json({ error: 'Impossible de créer le cours pour le moment.' });
+  }
+});
+
+app.get('/api/courses/:courseId/activities', async (req, res) => {
+  try {
+    const courseId = Number(req.params.courseId);
+
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      return res.status(400).json({ error: 'Identifiant de cours invalide.' });
+    }
+
+    const courseExists = await ensureCourseExists(courseId);
+    if (!courseExists) {
+      return res.status(404).json({ error: 'Cours introuvable.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT a.id,
+              a.specific_objective AS name,
+              a.description,
+              a.duration_minutes AS duration,
+              a.format,
+              a.materials,
+              h.week_number AS weekNumber,
+              h.period
+       FROM activities a
+       INNER JOIN half_days h ON a.half_day_id = h.id
+       WHERE h.course_id = ?
+       ORDER BY h.week_number, h.period, a.position IS NULL, a.position, a.id`,
+      [courseId]
+    );
+
+    const activities = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      week: row.weekNumber,
+      slot: periodToSlot.get(row.period),
+      type: row.format,
+      details: row.description,
+      duration: row.duration,
+      materials: row.materials || ''
+    })).filter((activity) => Number.isInteger(activity.week) && Number.isInteger(activity.slot));
+
+    res.json(activities);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des activités :', error.message);
+    res.status(500).json({ error: 'Impossible de récupérer les activités pour le moment.' });
+  }
+});
+
 app.post('/api/activities', async (req, res) => {
   try {
-    const { name, week, slot, format, details, duration, materials } = req.body;
+    const { name, week, slot, format, details, duration, materials, courseId } = req.body;
 
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'Le nom de l’activité est requis.' });
+    }
+
+    const selectedCourseId = Number(courseId);
+    if (!Number.isInteger(selectedCourseId) || selectedCourseId <= 0) {
+      return res.status(400).json({ error: 'Un cours valide est requis pour créer une activité.' });
+    }
+
+    const courseExists = await ensureCourseExists(selectedCourseId);
+    if (!courseExists) {
+      return res.status(404).json({ error: 'Cours introuvable.' });
     }
 
     const weekNumber = Number(week);
@@ -164,9 +272,8 @@ app.post('/api/activities', async (req, res) => {
     const description = (details || '').trim() || 'Description à compléter';
     const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() : null;
 
-    const courseId = await ensureDefaultCourse();
     const sessionDate = computeSessionDate(weekNumber);
-    const halfDayId = await getHalfDayId(courseId, sessionDate, period);
+    const halfDayId = await getHalfDayId(selectedCourseId, weekNumber, sessionDate, period);
 
     const [result] = await pool.query(
       `INSERT INTO activities (half_day_id, specific_objective, description, duration_minutes, format, materials)

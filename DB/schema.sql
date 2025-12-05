@@ -14,12 +14,13 @@ CREATE TABLE IF NOT EXISTS courses (
 CREATE TABLE IF NOT EXISTS half_days (
     id INT AUTO_INCREMENT PRIMARY KEY,
     course_id INT NOT NULL,
+    week_number TINYINT UNSIGNED NOT NULL,
     session_date DATE NOT NULL,
     period ENUM('matin', 'apres_midi') NOT NULL,
     notes TEXT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_half_days_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-    CONSTRAINT uq_half_days UNIQUE (course_id, session_date, period)
+    CONSTRAINT uq_half_days UNIQUE (course_id, week_number, period)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS activities (
