@@ -136,8 +136,11 @@
           <textarea id="materials" rows="2" placeholder="Listez les ressources utiles"></textarea>
         </label>
 
-        <div class="course-form__actions">
-          <button class="btn btn-primary" type="submit">Ajouter l'activité</button>
+        <div class="course-form__actions activity-form__actions">
+          <div class="activity-form__buttons">
+            <button class="btn btn-primary" id="activity-submit" type="submit">Ajouter l'activité</button>
+            <button class="btn btn-danger is-hidden" id="delete-activity" type="button">Supprimer</button>
+          </div>
           <p class="muted" id="activity-status" aria-live="polite"></p>
         </div>
       </form>
@@ -256,6 +259,9 @@
     const activityModal = document.getElementById('activity-modal');
     const activityModalBackdrop = document.querySelector('[data-close-activity-modal]');
     const activityStatus = document.getElementById('activity-status');
+    const activityModalTitle = document.getElementById('activity-modal-title');
+    const activitySubmitButton = document.getElementById('activity-submit');
+    const activityDeleteButton = document.getElementById('delete-activity');
     const formatSelector = document.getElementById('format-selector');
     const formatInput = document.getElementById('type-select');
     const closeActivityModalBtn = document.getElementById('close-activity-modal');
@@ -276,6 +282,7 @@
     let draggedActivity = null;
     let dropHandled = false;
     let currentCourseId = null;
+    let editingActivity = null;
 
     function selectFormat(format) {
       if (!formatSelector) return;
@@ -298,6 +305,20 @@
       selectFormat(formatInput.value || Object.keys(supportedFormats)[0]);
     }
 
+    function setActivityFormMode(mode) {
+      if (mode === 'edit') {
+        activitySubmitButton.textContent = "Modifier l'activité";
+        activityModalTitle.textContent = 'Modifier une activité';
+        activityDeleteButton.classList.remove('is-hidden');
+        return;
+      }
+
+      editingActivity = null;
+      activitySubmitButton.textContent = "Ajouter l'activité";
+      activityModalTitle.textContent = 'Nouvelle activité';
+      activityDeleteButton.classList.add('is-hidden');
+    }
+
     function resetActivityFormDefaults() {
       activityForm.reset();
       document.getElementById('duration').value = 60;
@@ -308,6 +329,7 @@
     }
 
     function openActivityModal() {
+      setActivityFormMode('create');
       resetActivityFormDefaults();
       activityStatus.textContent = '';
       activityModal.removeAttribute('hidden');
@@ -318,6 +340,29 @@
     function closeActivityModal() {
       activityModal.setAttribute('hidden', '');
       activityModal.classList.add('is-hidden');
+      setActivityFormMode('create');
+    }
+
+    function openActivityEditModal(activity, weekIndex, slotIndex, activityIndex) {
+      if (!activity) return;
+
+      editingActivity = { id: activity.id, weekIndex, slotIndex, activityIndex };
+      setActivityFormMode('edit');
+
+      document.getElementById('activity-name').value = activity.name;
+      document.getElementById('duration').value = activity.duration;
+      document.getElementById('details').value = activity.details || '';
+      document.getElementById('materials').value = activity.materials || '';
+
+      weekSelect.value = weekIndex + 1;
+      refreshSlotSelectOptions();
+      slotSelect.value = slotIndex;
+      selectFormat(activity.type);
+
+      activityStatus.textContent = '';
+      activityModal.removeAttribute('hidden');
+      activityModal.classList.remove('is-hidden');
+      document.getElementById('activity-name').focus();
     }
 
       function openCourseModal() {
@@ -539,6 +584,20 @@
       renderSchedule();
     }
 
+    function removeActivityFromSchedule(context) {
+      const slot = schedule[context.weekIndex]?.slots?.[context.slotIndex];
+      if (!slot) return null;
+
+      return slot.activities.splice(context.activityIndex, 1)[0] || null;
+    }
+
+    function addActivityToSchedule(activity, weekIndex, slotIndex) {
+      const slot = schedule[weekIndex]?.slots?.[slotIndex];
+      if (!slot) return;
+
+      slot.activities.push(activity);
+    }
+
     function createActivityElement(activity, weekIndex, slotIndex, activityIndex) {
       const activityEl = document.createElement('div');
       activityEl.className = 'activity';
@@ -551,15 +610,31 @@
       const header = document.createElement('div');
       header.className = 'activity__header';
 
+      const titleRow = document.createElement('div');
+      titleRow.className = 'activity__title-row';
+
       const title = document.createElement('span');
       title.className = 'activity__title';
       title.textContent = activity.name;
+
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.className = 'icon-button icon-button--ghost activity__edit-btn';
+      editButton.title = "Modifier l'activité";
+      editButton.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
+      editButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
+      });
+      titleRow.appendChild(title);
+      titleRow.appendChild(editButton);
 
       const type = document.createElement('span');
       type.className = 'activity__type';
       type.textContent = supportedFormats[activity.type] || activity.type;
 
-      header.appendChild(title);
+      header.appendChild(titleRow);
       header.appendChild(type);
 
       activityEl.appendChild(header);
@@ -720,6 +795,46 @@
         }
       }
 
+      async function updateActivity(activityId, payload) {
+        try {
+          const response = await fetch(`/api/activities/${activityId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || "Impossible de mettre à jour l'activité.");
+          }
+
+          activityStatus.textContent = 'Activité mise à jour.';
+          return true;
+        } catch (error) {
+          activityStatus.textContent = `⚠️ ${error.message}`;
+          return false;
+        }
+      }
+
+      async function deleteActivityById(activityId) {
+        try {
+          const response = await fetch(`/api/activities/${activityId}`, {
+            method: 'DELETE'
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || "Impossible de supprimer l'activité.");
+          }
+
+          activityStatus.textContent = 'Activité supprimée.';
+          return true;
+        } catch (error) {
+          activityStatus.textContent = `⚠️ ${error.message}`;
+          return false;
+        }
+      }
+
       async function moveActivity(activityId, weekNumber, slotIndex) {
         if (!activityId) return Promise.resolve();
 
@@ -756,6 +871,23 @@
         }
       });
 
+      activityDeleteButton.addEventListener('click', () => {
+        if (!editingActivity) return;
+
+        const shouldDelete = window.confirm("Voulez-vous supprimer cette activité ?");
+        if (!shouldDelete) return;
+
+        activityStatus.textContent = "Suppression de l’activité en cours...";
+        deleteActivityById(editingActivity.id).then((success) => {
+          if (success) {
+            removeActivityFromSchedule(editingActivity);
+            renderSchedule();
+            resetActivityFormDefaults();
+            closeActivityModal();
+          }
+        });
+      });
+
       activityForm.addEventListener('submit', (event) => {
         event.preventDefault();
 
@@ -774,10 +906,7 @@
 
       if (!name || duration <= 0) return;
 
-      const targetSlot = schedule[weekIndex].slots[slotIndex];
-      const activity = { name, type, details, duration, materials };
-      activityStatus.textContent = 'Enregistrement de l’activité en cours...';
-      persistActivity({
+      const activityPayload = {
         name,
         week: weekIndex + 1,
         slot: slotIndex,
@@ -786,7 +915,37 @@
         duration,
         materials,
         courseId: currentCourseId
-      }).then((activityId) => {
+      };
+
+      if (editingActivity) {
+        activityStatus.textContent = "Mise à jour de l’activité en cours...";
+        updateActivity(editingActivity.id, activityPayload).then((success) => {
+          if (success) {
+            const updatedActivity = { id: editingActivity.id, name, type, details, duration, materials };
+            const targetWeekIndex = weekIndex;
+            const targetSlotIndex = slotIndex;
+            const staysInSameSlot =
+              targetWeekIndex === editingActivity.weekIndex && targetSlotIndex === editingActivity.slotIndex;
+
+            if (staysInSameSlot) {
+              schedule[targetWeekIndex].slots[targetSlotIndex].activities[editingActivity.activityIndex] = updatedActivity;
+            } else {
+              removeActivityFromSchedule(editingActivity);
+              addActivityToSchedule(updatedActivity, targetWeekIndex, targetSlotIndex);
+            }
+
+            renderSchedule();
+            resetActivityFormDefaults();
+            closeActivityModal();
+          }
+        });
+        return;
+      }
+
+      const targetSlot = schedule[weekIndex].slots[slotIndex];
+      const activity = { name, type, details, duration, materials };
+      activityStatus.textContent = 'Enregistrement de l’activité en cours...';
+      persistActivity(activityPayload).then((activityId) => {
         if (activityId) {
           targetSlot.activities.push({ ...activity, id: activityId });
           renderSchedule();

@@ -588,6 +588,142 @@ app.post('/api/activities', async (req, res) => {
   }
 });
 
+app.patch('/api/activities/:activityId', async (req, res) => {
+  try {
+    const activityId = Number(req.params.activityId);
+    const { name, week, slot, format, details, duration, materials, courseId } = req.body;
+
+    if (!Number.isInteger(activityId) || activityId <= 0) {
+      return res.status(400).json({ error: "Identifiant d'activité invalide." });
+    }
+
+    const [existingActivities] = await pool.query(
+      `SELECT a.id, a.half_day_id AS halfDayId, h.course_id AS courseId
+       FROM activities a
+       INNER JOIN half_days h ON a.half_day_id = h.id
+       WHERE a.id = ?
+       LIMIT 1`,
+      [activityId]
+    );
+
+    if (existingActivities.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable.' });
+    }
+
+    const existingActivity = existingActivities[0];
+
+    if (courseId && Number(courseId) !== existingActivity.courseId) {
+      return res.status(400).json({ error: "Cette activité appartient à un autre cours." });
+    }
+
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: "Le nom de l’activité est requis." });
+    }
+
+    const weekNumber = Number(week);
+    if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 5) {
+      return res.status(400).json({ error: 'La semaine doit être comprise entre 1 et 5.' });
+    }
+
+    const slotIndex = Number(slot);
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) {
+      return res.status(400).json({ error: 'Le créneau est invalide.' });
+    }
+
+    const normalizedFormat = typeof format === 'string' ? format : '';
+    if (!supportedFormats.has(normalizedFormat)) {
+      return res.status(400).json({ error: 'Le format indiqué est invalide.' });
+    }
+
+    const durationMinutes = Number(duration);
+    if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+      return res.status(400).json({ error: 'La durée (en minutes) doit être un nombre positif.' });
+    }
+
+    const objective = name.trim();
+    const description = (details || '').trim() || 'Description à compléter';
+    const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() : null;
+
+    const targetHalfDay = await getHalfDayForCourse(existingActivity.courseId, weekNumber, slotIndex);
+    if (!targetHalfDay) {
+      return res.status(500).json({ error: "Impossible de déterminer le demi-jour cible." });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      let positionClause = '';
+      const queryParams = [
+        targetHalfDay.id,
+        objective,
+        description,
+        durationMinutes,
+        normalizedFormat,
+        sanitizedMaterials
+      ];
+
+      if (targetHalfDay.id !== existingActivity.halfDayId) {
+        const [positions] = await connection.query(
+          'SELECT COALESCE(MAX(position), 0) AS maxPosition FROM activities WHERE half_day_id = ?',
+          [targetHalfDay.id]
+        );
+
+        const nextPosition = Number(positions[0].maxPosition) + 1;
+        positionClause = ', position = ?';
+        queryParams.push(nextPosition);
+      }
+
+      queryParams.push(activityId);
+
+      await connection.query(
+        `UPDATE activities
+         SET half_day_id = ?, specific_objective = ?, description = ?, duration_minutes = ?, format = ?, materials = ?${positionClause}
+         WHERE id = ?`,
+        queryParams
+      );
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    res.json({ success: true, halfDayId: targetHalfDay.id });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de l'activité :", error.message);
+    res.status(500).json({ error: "Impossible de mettre à jour l'activité pour le moment." });
+  }
+});
+
+app.delete('/api/activities/:activityId', async (req, res) => {
+  try {
+    const activityId = Number(req.params.activityId);
+
+    if (!Number.isInteger(activityId) || activityId <= 0) {
+      return res.status(400).json({ error: "Identifiant d'activité invalide." });
+    }
+
+    const [existingActivities] = await pool.query(
+      'SELECT id FROM activities WHERE id = ? LIMIT 1',
+      [activityId]
+    );
+
+    if (existingActivities.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable.' });
+    }
+
+    await pool.query('DELETE FROM activities WHERE id = ?', [activityId]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'activité :", error.message);
+    res.status(500).json({ error: "Impossible de supprimer l'activité pour le moment." });
+  }
+});
+
 app.patch('/api/activities/:activityId/move', async (req, res) => {
   try {
     const activityId = Number(req.params.activityId);

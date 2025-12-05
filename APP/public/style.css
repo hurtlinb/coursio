@@ -260,6 +260,29 @@ h1 {
   gap: 12px;
 }
 
+.activity-form__actions {
+  align-items: flex-start;
+}
+
+.activity-form__buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fecdd3;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.btn-danger:hover,
+.btn-danger:focus-visible {
+  background: rgba(239, 68, 68, 0.24);
+  box-shadow: var(--shadow);
+  outline: none;
+}
+
 .course-form__actions {
   display: flex;
   align-items: center;
@@ -536,8 +559,21 @@ h1 {
   gap: 10px;
 }
 
+.activity__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .activity__title {
   font-weight: 700;
+}
+
+.activity__edit-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  border-radius: 8px;
 }
 
 .activity__type {
