@@ -685,15 +685,6 @@
     function handleDragEnd(event) {
       event.currentTarget.classList.remove('is-dragging');
 
-      if (draggedActivity && !dropHandled) {
-        const shouldDelete = window.confirm("Voulez-vous supprimer cette activité ?");
-        if (shouldDelete) {
-          const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
-          sourceSlot.activities.splice(draggedActivity.index, 1);
-          renderSchedule();
-        }
-      }
-
       draggedActivity = null;
       dropHandled = false;
     }
