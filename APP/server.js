@@ -563,7 +563,7 @@ app.post('/api/activities', async (req, res) => {
 
     const objective = name.trim();
     const description = (details || '').trim() || 'Description à compléter';
-    const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() || null : null;
+    const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() : null;
 
     const halfDay = await getHalfDayForCourse(selectedCourseId, weekNumber, slotIndex);
     if (!halfDay) {
@@ -585,69 +585,6 @@ app.post('/api/activities', async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de l’activité :', error.message);
     res.status(500).json({ error: 'Impossible d’enregistrer l’activité pour le moment.' });
-  }
-});
-
-app.patch('/api/activities/:activityId', async (req, res) => {
-  try {
-    const activityId = Number(req.params.activityId);
-    const { name, format, details, duration, materials, courseId } = req.body;
-
-    if (!Number.isInteger(activityId) || activityId <= 0) {
-      return res.status(400).json({ error: "Identifiant d'activité invalide." });
-    }
-
-    if (!name || typeof name !== 'string') {
-      return res.status(400).json({ error: 'Le nom de l’activité est requis.' });
-    }
-
-    const normalizedFormat = typeof format === 'string' ? format : '';
-    if (!supportedFormats.has(normalizedFormat)) {
-      return res.status(400).json({ error: 'Le format indiqué est invalide.' });
-    }
-
-    const durationMinutes = Number(duration);
-    if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
-      return res.status(400).json({ error: 'La durée (en minutes) doit être un nombre positif.' });
-    }
-
-    const [existingActivities] = await pool.query(
-      `SELECT a.id, h.course_id AS courseId
-       FROM activities a
-       INNER JOIN half_days h ON a.half_day_id = h.id
-       WHERE a.id = ?
-       LIMIT 1`,
-      [activityId]
-    );
-
-    if (existingActivities.length === 0) {
-      return res.status(404).json({ error: 'Activité introuvable.' });
-    }
-
-    const activityCourseId = existingActivities[0].courseId;
-    if (courseId && Number(courseId) !== activityCourseId) {
-      return res.status(400).json({ error: "Cette activité n'appartient pas au cours sélectionné." });
-    }
-
-    const objective = name.trim();
-    const description = (details || '').trim() || 'Description à compléter';
-    const sanitizedMaterials = materials && typeof materials === 'string' ? materials.trim() || null : null;
-
-    await pool.query(
-      `UPDATE activities
-       SET specific_objective = ?, description = ?, duration_minutes = ?, format = ?, materials = ?
-       WHERE id = ?`,
-      [objective, description, durationMinutes, normalizedFormat, sanitizedMaterials, activityId]
-    );
-
-    res.json({
-      success: true,
-      activityId,
-      courseId: activityCourseId
-    });
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour de l'activité :", error.message);
-    res.status(500).json({ error: "Impossible de mettre à jour l'activité." });
   }
 });
 
