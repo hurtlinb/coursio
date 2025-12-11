@@ -1080,7 +1080,7 @@ app.patch('/api/activities/:activityId/move', requireAuth, async (req, res) => {
     }
 
     const [existingActivities] = await pool.query(
-      `SELECT a.id, h.course_id AS courseId
+      `SELECT a.id, a.half_day_id AS halfDayId, h.course_id AS courseId
        FROM activities a
        INNER JOIN half_days h ON a.half_day_id = h.id
        INNER JOIN courses c ON h.course_id = c.id
@@ -1093,7 +1093,8 @@ app.patch('/api/activities/:activityId/move', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Activité introuvable.' });
     }
 
-    const activityCourseId = existingActivities[0].courseId;
+    const existingActivity = existingActivities[0];
+    const activityCourseId = existingActivity.courseId;
 
     if (courseId && Number(courseId) !== activityCourseId) {
       return res.status(400).json({ error: "L'activité ne peut être déplacée vers un autre cours." });
