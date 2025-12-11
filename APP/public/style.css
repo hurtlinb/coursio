@@ -421,6 +421,19 @@ h1 {
   font-size: 14px;
 }
 
+.half-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.half-day-toggle input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-2);
+}
+
 .form-field input,
 .form-field select,
 .form-field textarea {
@@ -648,11 +661,36 @@ h1 {
   color: var(--accent-2);
 }
 
+.slot__label-button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot__label-button:hover,
+.slot__label-button:focus {
+  color: var(--accent-1);
+}
+
 .slot__content {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-height: 48px;
+}
+
+.slot--holiday {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: linear-gradient(160deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
+}
+
+.slot__content--holiday {
+  pointer-events: none;
+  opacity: 0.9;
 }
 
 .activity {
