@@ -815,17 +815,40 @@
       activityEl.appendChild(header);
 
       const detailsText = activity.details || 'Description à compléter';
+      const detailsRow = document.createElement('div');
+      detailsRow.className = 'activity__details-row';
+
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
-      activityEl.appendChild(details);
+      detailsRow.appendChild(details);
 
       if (activity.materials) {
-        const materials = document.createElement('p');
-        materials.className = 'activity__details';
-        materials.textContent = `Matériel : ${activity.materials}`;
-        activityEl.appendChild(materials);
+        const materials = document.createElement('div');
+        materials.className = 'activity__materials';
+        materials.setAttribute('aria-label', 'Matériel');
+
+        const materialsLabel = document.createElement('span');
+        materialsLabel.className = 'sr-only';
+        materialsLabel.textContent = 'Matériel :';
+
+        const materialsIcon = document.createElement('span');
+        materialsIcon.className = 'activity__materials-icon';
+        materialsIcon.setAttribute('aria-hidden', 'true');
+        materialsIcon.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7.5L19 7.5V21H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 3v5H19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 13H15m-5.5 4H15m-5.5-8h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+        const materialsText = document.createElement('span');
+        materialsText.className = 'activity__materials-text';
+        materialsText.textContent = activity.materials;
+
+        materials.appendChild(materialsLabel);
+        materials.appendChild(materialsIcon);
+        materials.appendChild(materialsText);
+        detailsRow.appendChild(materials);
       }
+
+      activityEl.appendChild(detailsRow);
 
       activityEl.addEventListener('dragstart', handleDragStart);
       activityEl.addEventListener('dragend', handleDragEnd);
