@@ -1288,7 +1288,7 @@
       if (isHoliday && slot.activities.length > 0) {
         halfDayStatus.textContent =
           "Impossible de marquer cette demi-journée comme congé tant qu'une activité y est planifiée. Déplacez ou supprimez l'activité avant de réessayer.";
-        halfDayHolidayInput.checked = false;
+        setHalfDayHolidayToggleState(false);
         return false;
       }
 
@@ -1524,12 +1524,10 @@
       });
       halfDayForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        const isUpdated = updateHalfDayHolidayState(halfDayHolidayInput.checked);
+        const isUpdated = updateHalfDayHolidayState(getHalfDayHolidayToggleState());
         if (isUpdated) {
           closeHalfDayModal();
         }
-        updateHalfDayHolidayState(getHalfDayHolidayToggleState());
-        closeHalfDayModal();
       });
       rescheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
