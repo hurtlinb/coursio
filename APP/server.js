@@ -265,7 +265,7 @@ async function getCourse(courseId, teacherId) {
 
   const [rows] = await pool.query(
     `SELECT id, teacher_id AS teacherId, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
-            start_date AS startDate, start_period AS startPeriod
+            particularites, start_date AS startDate, start_period AS startPeriod
      FROM courses
      WHERE ${conditions.join(' AND ')}
      LIMIT 1`,
@@ -388,12 +388,15 @@ async function ensureSchema() {
       room VARCHAR(100) NOT NULL,
       module_number VARCHAR(50) NOT NULL,
       module_name VARCHAR(255) NOT NULL,
+      particularites TEXT NULL,
       start_date DATE NOT NULL,
       start_period ENUM('matin', 'apres_midi') NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_courses_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+
+  await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS particularites TEXT NULL AFTER module_name;');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS half_days (
@@ -568,7 +571,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 app.get('/api/courses', requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
+      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName, particularites,
               start_date AS startDate, start_period AS startPeriod, created_at AS createdAt
        FROM courses
        WHERE teacher_id = ?
@@ -586,7 +589,7 @@ app.get('/api/courses', requireAuth, async (req, res) => {
 
 app.post('/api/courses', requireAuth, async (req, res) => {
   try {
-    const { className, room, moduleNumber, moduleName, startDate, startSlot } = req.body;
+    const { className, room, moduleNumber, moduleName, startDate, startSlot, particularites } = req.body;
 
     if (!className || !room || !moduleNumber || !moduleName) {
       return res.status(400).json({ error: 'Tous les champs du cours sont requis.' });
@@ -597,6 +600,7 @@ app.post('/api/courses', requireAuth, async (req, res) => {
     }
 
     const startSlotIndex = Number(startSlot);
+    const notes = typeof particularites === 'string' ? particularites.trim() : '';
     const startPeriod = slotToPeriod[startSlotIndex];
 
     if (!startPeriod) {
@@ -604,8 +608,8 @@ app.post('/api/courses', requireAuth, async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, start_date, start_period)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)` ,
+      `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, particularites, start_date, start_period)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
         req.user.id,
         req.user.name,
@@ -613,6 +617,7 @@ app.post('/api/courses', requireAuth, async (req, res) => {
         room.trim(),
         moduleNumber.trim(),
         moduleName.trim(),
+        notes,
         startDate,
         startPeriod
       ]
@@ -630,7 +635,7 @@ app.post('/api/courses', requireAuth, async (req, res) => {
 app.patch('/api/courses/:courseId', requireAuth, async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);
-    const { className, room, moduleNumber, moduleName } = req.body || {};
+    const { className, room, moduleNumber, moduleName, particularites } = req.body || {};
 
     if (!Number.isInteger(courseId) || courseId <= 0) {
       return res.status(400).json({ error: 'Identifiant de cours invalide.' });
@@ -649,9 +654,11 @@ app.patch('/api/courses/:courseId', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Cours introuvable.' });
     }
 
+    const notes = typeof particularites === 'string' ? particularites.trim() : '';
+
     await pool.query(
-      'UPDATE courses SET module_number = ?, module_name = ?, class = ?, room = ? WHERE id = ? AND teacher_id = ?',
-      [moduleNumber.trim(), moduleName.trim(), className.trim(), room.trim(), courseId, req.user.id]
+      'UPDATE courses SET module_number = ?, module_name = ?, class = ?, room = ?, particularites = ? WHERE id = ? AND teacher_id = ?',
+      [moduleNumber.trim(), moduleName.trim(), className.trim(), room.trim(), notes, courseId, req.user.id]
     );
 
     res.json({ success: true });

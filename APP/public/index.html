@@ -67,8 +67,8 @@
 
       <div class="course-toolbar" aria-label="Sélection des cours">
         <div class="course-toolbar__intro">
-          <button class="label course-title" id="course-title" type="button">Cours</button>
-          <p class="muted" id="course-details">Connectez-vous pour afficher les informations de votre cours.</p>
+          <button class="label course-title" id="course-title" type="button">Sélectionnez un module</button>
+          <div class="muted course-details" id="course-details">Connectez-vous pour afficher les informations de votre cours.</div>
         </div>
         <div class="course-toolbar__actions">
           <label class="form-field form-field--inline">
@@ -104,6 +104,10 @@
               <input type="text" id="edit-course-room" required>
             </label>
           </div>
+          <label class="form-field">
+            <span>Particularités</span>
+            <textarea id="edit-course-particularities" rows="2" placeholder="Précisions logistiques, modalités, etc."></textarea>
+          </label>
           <div class="course-editor__actions">
             <div class="course-editor__action-buttons">
               <button class="btn btn-primary" type="submit">Mettre à jour</button>
@@ -235,6 +239,10 @@
         <label class="form-field">
           <span>Titre du module</span>
           <input type="text" id="course-name" placeholder="Nom du module" required>
+        </label>
+        <label class="form-field">
+          <span>Particularités</span>
+          <textarea id="course-particularities" rows="2" placeholder="Précisions logistiques, modalités, etc."></textarea>
         </label>
         <div class="form-row">
           <label class="form-field">
@@ -462,6 +470,7 @@
     const courseStatus = document.getElementById('course-status');
     const courseStartDateInput = document.getElementById('course-start-date');
     const courseStartSlotSelect = document.getElementById('course-start-slot');
+    const courseParticularitiesInput = document.getElementById('course-particularities');
     const courseEditor = document.getElementById('course-editor');
     const courseEditorForm = document.getElementById('course-editor-form');
     const courseEditorStatus = document.getElementById('course-editor-status');
@@ -471,6 +480,7 @@
     const editCourseNameInput = document.getElementById('edit-course-name');
     const editCourseClassInput = document.getElementById('edit-course-class');
     const editCourseRoomInput = document.getElementById('edit-course-room');
+    const editCourseParticularitiesInput = document.getElementById('edit-course-particularities');
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openCourseModalBtn = document.getElementById('open-course-modal');
@@ -572,32 +582,64 @@
       });
     }
 
-    function formatCourseDetails(course) {
+    function buildCourseDetails(course) {
       if (!course) {
-        return 'Choisissez ou créez un cours pour gérer vos activités.';
+        return [];
       }
 
       const startPeriodLabel = course.startPeriod === 'apres_midi' ? 'Après-midi' : 'Matin';
-      const classLabel = course.className ? `Classe ${course.className}` : 'Classe non précisée';
-      const roomLabel = course.room ? `Salle ${course.room}` : 'Salle non précisée';
-      const startLabel = course.startDate ? `Début le ${course.startDate} (${startPeriodLabel})` : 'Date de début inconnue';
+      const startLabel = course.startDate ? `${course.startDate} (${startPeriodLabel})` : 'Date de début inconnue';
 
-      return `${classLabel} · ${roomLabel} · ${startLabel}`;
+      return [
+        { label: 'Classe', value: course.className || 'Non précisée' },
+        { label: 'Salle', value: course.room || 'Non précisée' },
+        { label: 'Début', value: startLabel },
+        { label: 'Particularités', value: course.particularites?.trim() || 'Aucune précision' }
+      ];
+    }
+
+    function renderCourseDetails(course) {
+      if (!courseDetails) return;
+
+      courseDetails.innerHTML = '';
+
+      if (!course) {
+        courseDetails.textContent = 'Choisissez ou créez un cours pour gérer vos activités.';
+        return;
+      }
+
+      const detailRows = buildCourseDetails(course);
+
+      detailRows.forEach(({ label, value }) => {
+        const row = document.createElement('div');
+        row.className = 'course-detail-row';
+
+        const rowLabel = document.createElement('span');
+        rowLabel.className = 'course-detail-label';
+        rowLabel.textContent = label;
+
+        const rowValue = document.createElement('span');
+        rowValue.className = 'course-detail-value';
+        rowValue.textContent = value;
+
+        row.append(rowLabel, rowValue);
+        courseDetails.appendChild(row);
+      });
     }
 
     function updateCourseHeader(course = getCurrentCourse()) {
       if (!courseTitleButton || !courseDetails) return;
 
       if (!course) {
-        courseTitleButton.textContent = 'Cours';
-        courseDetails.textContent = 'Choisissez ou créez un cours pour gérer vos activités.';
+        courseTitleButton.textContent = 'Sélectionnez un module';
+        renderCourseDetails(null);
         courseTitleButton.setAttribute('aria-disabled', 'true');
         return;
       }
 
-      courseTitleButton.textContent = `Cours — ${course.moduleNumber} · ${course.moduleName}`;
+      courseTitleButton.textContent = `${course.moduleNumber} · ${course.moduleName}`;
       courseTitleButton.removeAttribute('aria-disabled');
-      courseDetails.textContent = formatCourseDetails(course);
+      renderCourseDetails(course);
     }
 
     function selectFormat(format) {
@@ -689,8 +731,9 @@
         showAuthOverlay('login', 'Connectez-vous pour créer un cours.');
         return;
       }
-        courseForm.reset();
-        courseStatus.textContent = '';
+
+      courseForm.reset();
+      courseStatus.textContent = '';
       courseModal.removeAttribute('hidden');
       courseModal.classList.remove('is-hidden');
       courseStartDateInput.value = new Date().toISOString().slice(0, 10);
@@ -729,6 +772,7 @@
       editCourseNameInput.value = course.moduleName || '';
       editCourseClassInput.value = course.className || '';
       editCourseRoomInput.value = course.room || '';
+      editCourseParticularitiesInput.value = course.particularites || '';
 
       courseEditor.classList.remove('is-hidden');
       courseEditor.hidden = false;
@@ -1667,6 +1711,7 @@
           room: document.getElementById('course-room').value.trim(),
           moduleNumber: document.getElementById('course-number').value.trim(),
           moduleName: document.getElementById('course-name').value.trim(),
+          particularites: courseParticularitiesInput.value.trim(),
           startDate: courseStartDateInput.value,
           startSlot: courseStartSlotSelect.value
         };
@@ -1701,13 +1746,14 @@
       const moduleName = editCourseNameInput.value.trim();
       const className = editCourseClassInput.value.trim();
       const room = editCourseRoomInput.value.trim();
+      const particularites = editCourseParticularitiesInput.value.trim();
 
       if (!moduleNumber || !moduleName || !className || !room) {
         courseEditorStatus.textContent = 'Complétez tous les champs pour enregistrer les modifications.';
         return;
       }
 
-      const success = await updateCourseMetadata({ moduleNumber, moduleName, className, room });
+      const success = await updateCourseMetadata({ moduleNumber, moduleName, className, room, particularites });
 
       if (success) {
         const course = getCurrentCourse();
@@ -1716,6 +1762,7 @@
           course.moduleName = moduleName;
           course.className = className;
           course.room = room;
+          course.particularites = particularites;
         }
 
         fillCourseSelect(coursesCache);
