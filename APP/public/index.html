@@ -300,7 +300,12 @@
         <label class="form-field form-field--inline">
           <span>État de la demi-journée</span>
           <div class="half-day-toggle">
-            <input type="checkbox" id="half-day-holiday" />
+            <button class="toggle-button" type="button" id="half-day-holiday" aria-pressed="false">
+              <span class="toggle-button__track" aria-hidden="true">
+                <span class="toggle-button__thumb"></span>
+              </span>
+              <span class="toggle-button__state" data-holiday-state>OFF</span>
+            </button>
             <span>Marquer cette demi-journée comme congé</span>
           </div>
         </label>
@@ -481,7 +486,7 @@
     const halfDayModalBackdrop = document.querySelector('[data-close-half-day-modal]');
     const closeHalfDayModalBtn = document.getElementById('close-half-day-modal');
     const halfDayForm = document.getElementById('half-day-form');
-    const halfDayHolidayInput = document.getElementById('half-day-holiday');
+    const halfDayHolidayToggle = document.getElementById('half-day-holiday');
     const halfDayTitle = document.getElementById('half-day-title');
     const halfDayStatus = document.getElementById('half-day-status');
     const cancelHalfDayButton = document.getElementById('cancel-half-day');
@@ -1191,18 +1196,32 @@
       rescheduleModal.hidden = true;
     }
 
+    function setHalfDayHolidayToggleState(isHoliday) {
+      halfDayHolidayToggle.setAttribute('aria-pressed', String(isHoliday));
+      halfDayHolidayToggle.classList.toggle('is-active', isHoliday);
+
+      const stateLabel = halfDayHolidayToggle.querySelector('[data-holiday-state]');
+      if (stateLabel) {
+        stateLabel.textContent = isHoliday ? 'ON' : 'OFF';
+      }
+    }
+
+    function getHalfDayHolidayToggleState() {
+      return halfDayHolidayToggle.getAttribute('aria-pressed') === 'true';
+    }
+
     function openHalfDayModal(weekIndex, slotIndex) {
       const slot = schedule[weekIndex]?.slots?.[slotIndex];
       if (!slot) return;
 
       halfDaySelection = { weekIndex, slotIndex };
       halfDayTitle.textContent = slot.label;
-      halfDayHolidayInput.checked = Boolean(slot.isHoliday);
+      setHalfDayHolidayToggleState(Boolean(slot.isHoliday));
       halfDayStatus.textContent = '';
 
       halfDayModal.classList.remove('is-hidden');
       halfDayModal.hidden = false;
-      halfDayHolidayInput.focus();
+      halfDayHolidayToggle.focus();
     }
 
     function closeHalfDayModal() {
@@ -1443,9 +1462,12 @@
       closeHalfDayModalBtn.addEventListener('click', closeHalfDayModal);
       cancelHalfDayButton.addEventListener('click', closeHalfDayModal);
       halfDayModalBackdrop.addEventListener('click', closeHalfDayModal);
+      halfDayHolidayToggle.addEventListener('click', () => {
+        setHalfDayHolidayToggleState(!getHalfDayHolidayToggleState());
+      });
       halfDayForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        updateHalfDayHolidayState(halfDayHolidayInput.checked);
+        updateHalfDayHolidayState(getHalfDayHolidayToggleState());
         closeHalfDayModal();
       });
       rescheduleForm.addEventListener('submit', async (event) => {
