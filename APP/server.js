@@ -530,35 +530,7 @@ app.get('/api/status', async (_req, res) => {
 });
 
 app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { email, password, name } = req.body || {};
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, mot de passe et nom sont requis.' });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
-      return res.status(400).json({ error: 'Adresse email invalide.' });
-    }
-
-    if (String(password).length < 8) {
-      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
-    }
-
-    const existing = await getTeacherByEmail(normalizedEmail);
-    if (existing) {
-      return res.status(409).json({ error: 'Un compte existe déjà avec cet email.' });
-    }
-
-    const teacher = await createTeacher({ email: normalizedEmail, displayName: name.trim(), password });
-
-    setAuthCookie(res, { id: teacher.id, email: teacher.email, name: teacher.displayName });
-    res.status(201).json({ id: teacher.id, email: teacher.email, displayName: teacher.displayName });
-  } catch (error) {
-    console.error('Erreur lors de la création de compte :', error.message);
-    res.status(500).json({ error: 'Impossible de créer le compte pour le moment.' });
-  }
+  res.status(403).json({ error: 'La création de compte est désactivée. Veuillez contacter votre administrateur.' });
 });
 
 app.post('/api/auth/login', async (req, res) => {

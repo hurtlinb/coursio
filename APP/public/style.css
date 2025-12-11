@@ -825,6 +825,12 @@ h1 {
   color: var(--text);
 }
 
+.auth-tab.is-disabled,
+.auth-tab[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;
