@@ -627,6 +627,40 @@ app.post('/api/courses', requireAuth, async (req, res) => {
   }
 });
 
+app.patch('/api/courses/:courseId', requireAuth, async (req, res) => {
+  try {
+    const courseId = Number(req.params.courseId);
+    const { className, room, moduleNumber, moduleName } = req.body || {};
+
+    if (!Number.isInteger(courseId) || courseId <= 0) {
+      return res.status(400).json({ error: 'Identifiant de cours invalide.' });
+    }
+
+    if (!className || !room || !moduleNumber || !moduleName) {
+      return res.status(400).json({ error: 'Tous les champs sont requis pour mettre à jour le cours.' });
+    }
+
+    const [existingCourses] = await pool.query(
+      'SELECT id FROM courses WHERE id = ? AND teacher_id = ? LIMIT 1',
+      [courseId, req.user.id]
+    );
+
+    if (existingCourses.length === 0) {
+      return res.status(404).json({ error: 'Cours introuvable.' });
+    }
+
+    await pool.query(
+      'UPDATE courses SET module_number = ?, module_name = ?, class = ?, room = ? WHERE id = ? AND teacher_id = ?',
+      [moduleNumber.trim(), moduleName.trim(), className.trim(), room.trim(), courseId, req.user.id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du cours :', error.message);
+    res.status(500).json({ error: 'Impossible de mettre à jour le cours pour le moment.' });
+  }
+});
+
 app.delete('/api/courses/:courseId', requireAuth, async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);
