@@ -255,6 +255,35 @@
       </form>
     </div>
   </div>
+
+  <div class="course-modal is-hidden" id="half-day-modal" role="dialog" aria-modal="true" aria-labelledby="half-day-modal-title" hidden>
+    <div class="course-modal__backdrop" data-close-half-day-modal></div>
+    <div class="course-modal__content">
+      <div class="course-modal__header">
+        <div>
+          <p class="label" id="half-day-modal-title">Configurer la demi-journée</p>
+          <p class="muted" id="half-day-title">—</p>
+        </div>
+        <button class="icon-button icon-button--ghost" id="close-half-day-modal" type="button" aria-label="Fermer la configuration de la demi-journée">×</button>
+      </div>
+
+      <form class="course-form" id="half-day-form">
+        <label class="form-field form-field--inline">
+          <span>État de la demi-journée</span>
+          <div class="half-day-toggle">
+            <input type="checkbox" id="half-day-holiday" />
+            <span>Marquer cette demi-journée comme congé</span>
+          </div>
+        </label>
+
+        <div class="course-form__actions">
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+          <button class="btn btn-ghost" type="button" id="cancel-half-day">Annuler</button>
+        </div>
+        <p class="muted" id="half-day-status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
   <script>
     const weeks = 5;
     const supportedFormats = {
@@ -290,12 +319,13 @@
       return `${formattedDate} • ${periodLabel}`;
     }
 
-    function buildSchedule(halfDays = []) {
+    function buildSchedule(halfDays = [], holidays = {}) {
       const weeksSchedule = Array.from({ length: weeks }, (_, index) => ({
         week: index + 1,
         slots: Array.from({ length: 3 }, (__, slotIndex) => ({
           label: `Créneau ${slotIndex + 1}`,
-          activities: []
+          activities: [],
+          isHoliday: Boolean(holidays[`${index + 1}-${slotIndex}`])
         }))
       }));
 
@@ -305,9 +335,13 @@
 
         if (!weeksSchedule[weekIndex] || !weeksSchedule[weekIndex].slots[slotIndex]) return;
 
+        const key = `${halfDay.weekNumber}-${halfDay.slotIndex}`;
+        const isHoliday = Boolean(holidays[key]);
+
         weeksSchedule[weekIndex].slots[slotIndex] = {
           label: formatHalfDayLabel(halfDay),
-          activities: []
+          activities: [],
+          isHoliday
         };
       });
 
@@ -333,9 +367,37 @@
       return startingHalfDay?.sessionDate || '';
     }
 
+    function getHolidayStorageKey(courseId) {
+      return `coursio-holidays-${courseId}`;
+    }
+
+    function loadHolidayOverrides(courseId) {
+      if (!courseId) return {};
+
+      try {
+        const storedValue = localStorage.getItem(getHolidayStorageKey(courseId));
+        return storedValue ? JSON.parse(storedValue) : {};
+      } catch (error) {
+        console.warn('Impossible de charger les congés locaux :', error.message);
+        return {};
+      }
+    }
+
+    function persistHolidayOverrides(courseId, overrides) {
+      if (!courseId) return;
+
+      try {
+        localStorage.setItem(getHolidayStorageKey(courseId), JSON.stringify(overrides));
+      } catch (error) {
+        console.warn('Impossible de sauvegarder les congés locaux :', error.message);
+      }
+    }
+
     let schedule = buildSchedule();
     let courseHalfDays = [];
     let rescheduleWeekIndex = null;
+    let halfDaySelection = { weekIndex: null, slotIndex: null };
+    let halfDayHolidays = {};
 
     const timeline = document.getElementById('timeline');
     const authOverlay = document.getElementById('auth-overlay');
@@ -376,6 +438,14 @@
     const rescheduleStatus = document.getElementById('reschedule-status');
     const rescheduleWeekTitle = document.getElementById('reschedule-week-title');
     const cancelRescheduleButton = document.getElementById('cancel-reschedule');
+    const halfDayModal = document.getElementById('half-day-modal');
+    const halfDayModalBackdrop = document.querySelector('[data-close-half-day-modal]');
+    const closeHalfDayModalBtn = document.getElementById('close-half-day-modal');
+    const halfDayForm = document.getElementById('half-day-form');
+    const halfDayHolidayInput = document.getElementById('half-day-holiday');
+    const halfDayTitle = document.getElementById('half-day-title');
+    const halfDayStatus = document.getElementById('half-day-status');
+    const cancelHalfDayButton = document.getElementById('cancel-half-day');
     const loginEmailInput = document.getElementById('login-email');
     const registerNameInput = document.getElementById('register-name');
     const registerEmailInput = document.getElementById('register-email');
@@ -494,6 +564,12 @@
     }
 
     function openActivityModal(weekIndex) {
+      const availableSlotIndex = findNextSlotIndex(weekIndex);
+      if (availableSlotIndex === null) {
+        activityStatus.textContent = 'Cette semaine est configurée en congé. Retirez le congé pour ajouter une activité.';
+        return;
+      }
+
       creationWeekIndex = weekIndex;
       setActivityFormMode('create');
       resetActivityFormDefaults();
@@ -593,6 +669,8 @@
         if (courses.length === 0) {
           courseStatus.textContent = 'Aucun cours disponible pour le moment.';
           currentCourseId = null;
+          halfDayHolidays = {};
+          halfDaySelection = { weekIndex: null, slotIndex: null };
           schedule = createEmptySchedule();
           renderSchedule();
           return;
@@ -664,6 +742,10 @@
       }
     }
 
+    function isHolidayTarget(event) {
+      return event.currentTarget?.dataset?.holiday === 'true';
+    }
+
     function handleDragStart(event) {
       const { week, slot, index, id } = event.currentTarget.dataset;
       draggedActivity = {
@@ -686,15 +768,18 @@
     }
 
     function handleDragOver(event) {
+      if (isHolidayTarget(event)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
     }
 
     function handleDragEnter(event) {
+      if (isHolidayTarget(event)) return;
       event.currentTarget.classList.add('slot__content--over');
     }
 
     function handleDragLeave(event) {
+      if (isHolidayTarget(event)) return;
       event.currentTarget.classList.remove('slot__content--over');
     }
 
@@ -709,11 +794,14 @@
       const targetWeek = Number(event.currentTarget.dataset.week);
       const targetSlot = Number(event.currentTarget.dataset.slot);
 
+      const targetSlotData = schedule[targetWeek]?.slots?.[targetSlot];
+      if (!targetSlotData || targetSlotData.isHoliday) return;
+
       if (draggedActivity.week === targetWeek && draggedActivity.slot === targetSlot) return;
 
       const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
       const [activity] = sourceSlot.activities.splice(draggedActivity.index, 1);
-      schedule[targetWeek].slots[targetSlot].activities.push(activity);
+      targetSlotData.activities.push(activity);
 
       moveActivity(draggedActivity.id, targetWeek + 1, targetSlot).catch(() => {
         courseStatus.textContent = '⚠️ Impossible de mettre à jour la base, rechargement du planning...';
@@ -856,6 +944,17 @@
       slotContent.className = 'slot__content';
       slotContent.dataset.week = weekIndex;
       slotContent.dataset.slot = slotIndex;
+      slotContent.dataset.holiday = slot.isHoliday ? 'true' : 'false';
+
+      if (slot.isHoliday) {
+        slotContent.classList.add('slot__content--holiday');
+        const holidayLabel = document.createElement('p');
+        holidayLabel.className = 'empty';
+        holidayLabel.textContent = 'Congé';
+        slotContent.appendChild(holidayLabel);
+        return slotContent;
+      }
+
       slotContent.addEventListener('dragover', handleDragOver);
       slotContent.addEventListener('dragenter', handleDragEnter);
       slotContent.addEventListener('dragleave', handleDragLeave);
@@ -880,12 +979,20 @@
       let lastFilledSlot = -1;
 
       weekSlots.forEach((slot, index) => {
-        if (slot.activities.length > 0) {
+        if (!slot.isHoliday && slot.activities.length > 0) {
           lastFilledSlot = index;
         }
       });
 
-      return lastFilledSlot === -1 ? 0 : lastFilledSlot;
+      const firstAvailableSlot = weekSlots.findIndex((slot) => !slot.isHoliday);
+      if (firstAvailableSlot === -1) return null;
+
+      const tentativeSlot = Math.min(lastFilledSlot + 1, weekSlots.length - 1);
+      if (weekSlots[tentativeSlot]?.isHoliday) {
+        return firstAvailableSlot;
+      }
+
+      return tentativeSlot;
     }
 
     async function rescheduleWeekDates(weekIndex, normalizedDate) {
@@ -950,6 +1057,50 @@
       rescheduleModal.hidden = true;
     }
 
+    function openHalfDayModal(weekIndex, slotIndex) {
+      const slot = schedule[weekIndex]?.slots?.[slotIndex];
+      if (!slot) return;
+
+      halfDaySelection = { weekIndex, slotIndex };
+      halfDayTitle.textContent = slot.label;
+      halfDayHolidayInput.checked = Boolean(slot.isHoliday);
+      halfDayStatus.textContent = '';
+
+      halfDayModal.classList.remove('is-hidden');
+      halfDayModal.hidden = false;
+      halfDayHolidayInput.focus();
+    }
+
+    function closeHalfDayModal() {
+      halfDaySelection = { weekIndex: null, slotIndex: null };
+      halfDayModal.classList.add('is-hidden');
+      halfDayModal.hidden = true;
+    }
+
+    function updateHalfDayHolidayState(isHoliday) {
+      const { weekIndex, slotIndex } = halfDaySelection;
+      if (weekIndex === null || slotIndex === null) return;
+
+      const slot = schedule[weekIndex]?.slots?.[slotIndex];
+      if (!slot) return;
+
+      const key = `${weekIndex + 1}-${slotIndex}`;
+
+      slot.isHoliday = isHoliday;
+      if (isHoliday) {
+        slot.activities = [];
+      }
+
+      if (isHoliday) {
+        halfDayHolidays[key] = true;
+      } else {
+        delete halfDayHolidays[key];
+      }
+
+      persistHolidayOverrides(currentCourseId, halfDayHolidays);
+      renderSchedule();
+    }
+
     function renderSchedule() {
       timeline.innerHTML = '';
 
@@ -989,11 +1140,17 @@
           const slotWrapper = document.createElement('div');
           const hasActivities = slot.activities.length > 0;
 
-          slotWrapper.className = `slot ${hasActivities ? 'slot--filled' : ''}`;
+          const slotClasses = ['slot'];
+          if (hasActivities) slotClasses.push('slot--filled');
+          if (slot.isHoliday) slotClasses.push('slot--holiday');
 
-          const slotLabel = document.createElement('div');
-          slotLabel.className = 'slot__label';
+          slotWrapper.className = slotClasses.join(' ');
+
+          const slotLabel = document.createElement('button');
+          slotLabel.type = 'button';
+          slotLabel.className = 'slot__label slot__label-button';
           slotLabel.textContent = slot.label;
+          slotLabel.addEventListener('click', () => openHalfDayModal(weekIndex, slotIndex));
 
           slotWrapper.appendChild(slotLabel);
           slotWrapper.appendChild(createSlotContent(weekIndex, slotIndex, slot));
@@ -1019,7 +1176,8 @@
 
         const { halfDays } = await halfDayResponse.json();
         courseHalfDays = halfDays || [];
-        schedule = buildSchedule(courseHalfDays);
+        halfDayHolidays = loadHolidayOverrides(courseId);
+        schedule = buildSchedule(courseHalfDays, halfDayHolidays);
         renderSchedule();
 
         const response = await authorizedFetch(`/api/courses/${courseId}/activities`);
@@ -1033,8 +1191,9 @@
           const weekIndex = activity.week - 1;
           const slotIndex = activity.slot;
 
-          if (schedule[weekIndex] && schedule[weekIndex].slots[slotIndex]) {
-            schedule[weekIndex].slots[slotIndex].activities.push({
+          const targetSlot = schedule[weekIndex]?.slots?.[slotIndex];
+          if (targetSlot && !targetSlot.isHoliday) {
+            targetSlot.activities.push({
               id: activity.id,
               name: activity.name,
               type: activity.type,
@@ -1144,6 +1303,14 @@
       closeRescheduleModalBtn.addEventListener('click', closeRescheduleModal);
       cancelRescheduleButton.addEventListener('click', closeRescheduleModal);
       rescheduleModalBackdrop.addEventListener('click', closeRescheduleModal);
+      closeHalfDayModalBtn.addEventListener('click', closeHalfDayModal);
+      cancelHalfDayButton.addEventListener('click', closeHalfDayModal);
+      halfDayModalBackdrop.addEventListener('click', closeHalfDayModal);
+      halfDayForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        updateHalfDayHolidayState(halfDayHolidayInput.checked);
+        closeHalfDayModal();
+      });
       rescheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
@@ -1197,6 +1364,8 @@
       logoutButton.addEventListener('click', async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
         setCurrentUser(null);
+        halfDayHolidays = {};
+        halfDaySelection = { weekIndex: null, slotIndex: null };
         schedule = createEmptySchedule();
         renderSchedule();
         showAuthOverlay('login', 'Vous êtes déconnecté.');
@@ -1225,6 +1394,9 @@
           }
           if (!activityModal.hasAttribute('hidden')) {
             closeActivityModal();
+          }
+          if (!halfDayModal.hasAttribute('hidden')) {
+            closeHalfDayModal();
           }
         }
       });
@@ -1269,6 +1441,10 @@
       }
 
       const targetSlotIndex = editingActivity ? editingActivity.slotIndex : findNextSlotIndex(targetWeekIndex);
+      if (targetSlotIndex === null || schedule[targetWeekIndex].slots[targetSlotIndex]?.isHoliday) {
+        activityStatus.textContent = 'Impossible d’ajouter une activité sur une demi-journée marquée comme congé.';
+        return;
+      }
 
       const activityPayload = {
         name,
