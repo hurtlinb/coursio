@@ -509,10 +509,57 @@
     let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
+    let lastDropContainer = null;
     let currentCourseId = null;
     let editingActivity = null;
     let creationWeekIndex = null;
     let currentUser = null;
+
+    function getActivityElements(container) {
+      return Array.from(container.querySelectorAll('.activity')).filter(
+        (activity) => !activity.classList.contains('is-dragging')
+      );
+    }
+
+    function getInsertIndex(container, pointerY) {
+      const activities = getActivityElements(container);
+
+      for (let index = 0; index < activities.length; index += 1) {
+        const rect = activities[index].getBoundingClientRect();
+        const threshold = rect.top + rect.height / 2;
+
+        if (pointerY < threshold) return index;
+      }
+
+      return activities.length;
+    }
+
+    function clearDropIndicators(container = lastDropContainer) {
+      if (!container) return;
+
+      container.classList.remove('slot__content--drop-end');
+      container.querySelectorAll('.activity--drop-marker').forEach((activity) => {
+        activity.classList.remove('activity--drop-marker');
+      });
+    }
+
+    function updateDropIndicators(container, insertIndex) {
+      if (container !== lastDropContainer) {
+        clearDropIndicators();
+      }
+
+      clearDropIndicators(container);
+
+      const activities = getActivityElements(container);
+
+      if (insertIndex < activities.length) {
+        activities[insertIndex].classList.add('activity--drop-marker');
+      } else {
+        container.classList.add('slot__content--drop-end');
+      }
+
+      lastDropContainer = container;
+    }
 
     function showAuthOverlay(mode = 'login', message = '') {
       const statusMessage = message || (mode === 'register' ? registrationDisabledMessage : '');
@@ -948,6 +995,8 @@
 
       draggedActivity = null;
       dropHandled = false;
+      clearDropIndicators();
+      lastDropContainer = null;
     }
 
     function isHolidayTarget(event) {
@@ -958,6 +1007,9 @@
       if (isHolidayTarget(event)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
+
+      const insertIndex = getInsertIndex(event.currentTarget, event.clientY);
+      updateDropIndicators(event.currentTarget, insertIndex);
     }
 
     function handleDragEnter(event) {
@@ -968,11 +1020,16 @@
     function handleDragLeave(event) {
       if (isHolidayTarget(event)) return;
       event.currentTarget.classList.remove('slot__content--over');
+
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        clearDropIndicators(event.currentTarget);
+      }
     }
 
     function handleDrop(event) {
       event.preventDefault();
       event.currentTarget.classList.remove('slot__content--over');
+      clearDropIndicators(event.currentTarget);
 
       if (!draggedActivity) return;
 
@@ -980,17 +1037,18 @@
 
       const targetWeek = Number(event.currentTarget.dataset.week);
       const targetSlot = Number(event.currentTarget.dataset.slot);
+      const insertIndex = getInsertIndex(event.currentTarget, event.clientY);
 
       const targetSlotData = schedule[targetWeek]?.slots?.[targetSlot];
       if (!targetSlotData || targetSlotData.isHoliday) return;
 
-      if (draggedActivity.week === targetWeek && draggedActivity.slot === targetSlot) return;
-
       const sourceSlot = schedule[draggedActivity.week].slots[draggedActivity.slot];
       const [activity] = sourceSlot.activities.splice(draggedActivity.index, 1);
-      targetSlotData.activities.push(activity);
 
-      moveActivity(draggedActivity.id, targetWeek + 1, targetSlot).catch(() => {
+      const boundedIndex = Math.min(Math.max(insertIndex, 0), targetSlotData.activities.length);
+      targetSlotData.activities.splice(boundedIndex, 0, activity);
+
+      moveActivity(draggedActivity.id, targetWeek + 1, targetSlot, boundedIndex).catch(() => {
         courseStatus.textContent = '⚠️ Impossible de mettre à jour la base, rechargement du planning...';
         loadActivitiesForCourse(currentCourseId);
       });
@@ -1487,13 +1545,13 @@
         }
       }
 
-      async function moveActivity(activityId, weekNumber, slotIndex) {
+      async function moveActivity(activityId, weekNumber, slotIndex, position = null) {
         if (!activityId) return Promise.resolve();
 
         return authorizedFetch(`/api/activities/${activityId}/move`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ week: weekNumber, slot: slotIndex, courseId: currentCourseId })
+          body: JSON.stringify({ week: weekNumber, slot: slotIndex, position, courseId: currentCourseId })
         }).then(async (response) => {
           if (!response.ok) {
             const error = await response.json().catch(() => ({}));

@@ -241,6 +241,25 @@ function buildExpectedHalfDays(startDate, startSlotIndex, startingWeekNumber = 1
   return halfDays;
 }
 
+async function getOrderedActivityIds(connection, halfDayId) {
+  const [activities] = await connection.query(
+    'SELECT id FROM activities WHERE half_day_id = ? ORDER BY position IS NULL, position, id',
+    [halfDayId]
+  );
+
+  return activities.map((activity) => activity.id);
+}
+
+async function resequenceHalfDayPositions(connection, halfDayId) {
+  const activityIds = await getOrderedActivityIds(connection, halfDayId);
+
+  await Promise.all(
+    activityIds.map((activityId, index) =>
+      connection.query('UPDATE activities SET position = ? WHERE id = ?', [index + 1, activityId])
+    )
+  );
+}
+
 async function listCourseHalfDays(courseId, teacherId) {
   const [halfDays] = await pool.query(
     `SELECT h.id, h.week_number AS weekNumber, h.slot_index AS slotIndex, h.session_date AS sessionDate, h.period
@@ -1090,6 +1109,14 @@ app.patch('/api/activities/:activityId/move', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Le créneau est invalide.' });
     }
 
+    const hasPosition =
+      Object.hasOwn(req.body, 'position') && req.body.position !== null && req.body.position !== undefined;
+    const requestedPosition = Number(req.body.position);
+
+    if (hasPosition && (!Number.isInteger(requestedPosition) || requestedPosition < 0)) {
+      return res.status(400).json({ error: 'La position demandée est invalide.' });
+    }
+
     const halfDay = await getHalfDayForCourse(activityCourseId, weekNumber, slotIndex, req.user.id);
     if (!halfDay) {
       return res.status(500).json({ error: "Impossible de déterminer le nouveau demi-jour." });
@@ -1097,22 +1124,38 @@ app.patch('/api/activities/:activityId/move', requireAuth, async (req, res) => {
 
     const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
+      await connection.beginTransaction();
 
-        const [positions] = await connection.query(
-          'SELECT COALESCE(MAX(position), 0) AS maxPosition FROM activities WHERE half_day_id = ?',
-          [halfDay.id]
-        );
-      const nextPosition = Number(positions[0].maxPosition) + 1;
+      const targetActivityIds = await getOrderedActivityIds(connection, halfDay.id);
 
-      await connection.query(
-        'UPDATE activities SET half_day_id = ?, position = ? WHERE id = ?',
-        [halfDay.id, nextPosition, activityId]
+      if (halfDay.id === existingActivity.halfDayId) {
+        const currentIndex = targetActivityIds.indexOf(activityId);
+        if (currentIndex !== -1) {
+          targetActivityIds.splice(currentIndex, 1);
+        }
+      }
+
+      const sanitizedPosition = hasPosition
+        ? Math.min(requestedPosition, targetActivityIds.length)
+        : targetActivityIds.length;
+
+      targetActivityIds.splice(sanitizedPosition, 0, activityId);
+
+      await connection.query('UPDATE activities SET half_day_id = ? WHERE id = ?', [halfDay.id, activityId]);
+
+      await Promise.all(
+        targetActivityIds.map((id, index) =>
+          connection.query('UPDATE activities SET position = ? WHERE id = ?', [index + 1, id])
+        )
       );
+
+      if (halfDay.id !== existingActivity.halfDayId) {
+        await resequenceHalfDayPositions(connection, existingActivity.halfDayId);
+      }
 
       await connection.commit();
 
-      res.json({ success: true, halfDayId: halfDay.id, position: nextPosition });
+      res.json({ success: true, halfDayId: halfDay.id, position: sanitizedPosition + 1 });
     } catch (error) {
       await connection.rollback();
       console.error("Erreur lors du déplacement de l'activité :", error.message);
