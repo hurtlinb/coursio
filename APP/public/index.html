@@ -769,6 +769,8 @@
       duration.appendChild(durationIcon);
       duration.appendChild(durationText);
 
+      metaColumn.appendChild(duration);
+
       const type = document.createElement('span');
       type.className = 'activity__type';
       type.title = supportedFormats[activity.type] || activity.type;
@@ -785,9 +787,6 @@
       type.appendChild(typeIcon);
       type.appendChild(typeLabel);
 
-      metaColumn.appendChild(duration);
-      metaColumn.appendChild(type);
-
       const title = document.createElement('button');
       title.type = 'button';
       title.className = 'activity__title activity__title-button';
@@ -802,6 +801,7 @@
 
       const titleRow = document.createElement('div');
       titleRow.className = 'activity__title-row';
+      titleRow.appendChild(type);
       titleRow.appendChild(title);
 
       header.appendChild(metaColumn);

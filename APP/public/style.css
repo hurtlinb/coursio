@@ -628,9 +628,10 @@ h1 {
 
 .activity__title-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 
 .activity {
@@ -684,23 +685,21 @@ h1 {
 }
 
 .activity__type {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: var(--text);
-  font-weight: 700;
-  font-size: 14px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--accent-2);
 }
 
 .activity__details-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: flex-start;
+  column-gap: 12px;
+  row-gap: 8px;
   padding-left: calc(var(--activity-duration-width) + var(--activity-duration-gap));
   color: var(--muted);
 }
@@ -714,6 +713,7 @@ h1 {
   align-items: center;
   gap: 8px;
   color: inherit;
+  justify-self: end;
 }
 
 .activity__materials-icon {
