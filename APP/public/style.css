@@ -374,10 +374,67 @@ h1 {
   color: var(--text-muted);
 }
 
-.half-day-toggle input[type='checkbox'] {
+.toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.toggle-button__track {
+  position: relative;
+  width: 46px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.toggle-button__thumb {
   width: 18px;
   height: 18px;
-  accent-color: var(--accent-2);
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.toggle-button__state {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.toggle-button.is-active {
+  background: rgba(82, 151, 255, 0.12);
+  border-color: rgba(82, 151, 255, 0.4);
+  color: var(--text);
+}
+
+.toggle-button.is-active .toggle-button__track {
+  background: rgba(82, 151, 255, 0.35);
+  border-color: rgba(82, 151, 255, 0.6);
+}
+
+.toggle-button.is-active .toggle-button__thumb {
+  transform: translateX(22px);
+  background: var(--accent-2);
+}
+
+.toggle-button.is-active .toggle-button__state {
+  color: var(--accent-2);
 }
 
 .form-field input,
