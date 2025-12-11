@@ -355,6 +355,12 @@
       year: 'numeric'
     });
 
+    const dateRangeFormatter = new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
+
     function formatHalfDayLabel(halfDay) {
       const periodLabel = halfDay.period === 'apres_midi' ? 'Après-midi' : 'Matin';
       const formattedDate = dateFormatter.format(new Date(halfDay.sessionDate));
@@ -582,18 +588,41 @@
       });
     }
 
+    function formatDateRangeFromHalfDays(halfDays) {
+      const validDates = (halfDays || [])
+        .map((halfDay) => new Date(halfDay.sessionDate))
+        .filter((date) => !Number.isNaN(date.getTime()))
+        .sort((a, b) => a - b);
+
+      if (validDates.length === 0) {
+        return '';
+      }
+
+      const startDate = validDates[0];
+      const endDate = validDates[validDates.length - 1];
+      const startLabel = dateRangeFormatter.format(startDate);
+      const endLabel = dateRangeFormatter.format(endDate);
+
+      if (startLabel === endLabel) {
+        return startLabel;
+      }
+
+      return `Du ${startLabel} au ${endLabel}`;
+    }
+
     function buildCourseDetails(course) {
       if (!course) {
         return [];
       }
 
-      const startPeriodLabel = course.startPeriod === 'apres_midi' ? 'Après-midi' : 'Matin';
-      const startLabel = course.startDate ? `${course.startDate} (${startPeriodLabel})` : 'Date de début inconnue';
+      const dateRangeLabel =
+        formatDateRangeFromHalfDays(courseHalfDays) ||
+        (course.startDate ? 'Date de début à préciser' : 'Dates à planifier');
 
       return [
         { label: 'Classe', value: course.className || 'Non précisée' },
         { label: 'Salle', value: course.room || 'Non précisée' },
-        { label: 'Début', value: startLabel },
+        { label: 'Date', value: dateRangeLabel },
         { label: 'Particularités', value: course.particularites?.trim() || 'Aucune précision' }
       ];
     }
@@ -1377,6 +1406,7 @@
       if (!courseId || !currentUser) return;
 
       courseStatus.textContent = 'Chargement des activités du cours...';
+      courseHalfDays = [];
 
       try {
         const halfDayResponse = await authorizedFetch(`/api/courses/${courseId}/half-days`);
@@ -1416,6 +1446,7 @@
 
         courseStatus.textContent = '';
         renderSchedule();
+        updateCourseHeader();
       } catch (error) {
         if (error.message === 'UNAUTHORIZED') return;
         courseStatus.textContent = 'Impossible de charger les activités du cours.';
