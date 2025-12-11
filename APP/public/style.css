@@ -318,11 +318,65 @@ h1 {
   flex-wrap: wrap;
 }
 
+.course-toolbar__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.course-title {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.course-title:hover,
+.course-title:focus-visible {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 .course-toolbar__actions {
   display: flex;
   align-items: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.course-editor {
+  margin-bottom: 10px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+}
+
+.course-editor.is-hidden {
+  display: none;
+}
+
+.course-editor__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.course-editor__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.course-editor__action-buttons {
+  display: flex;
+  gap: 10px;
 }
 
 .panel-card {
