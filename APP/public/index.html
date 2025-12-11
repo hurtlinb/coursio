@@ -1079,10 +1079,17 @@
 
     function updateHalfDayHolidayState(isHoliday) {
       const { weekIndex, slotIndex } = halfDaySelection;
-      if (weekIndex === null || slotIndex === null) return;
+      if (weekIndex === null || slotIndex === null) return false;
 
       const slot = schedule[weekIndex]?.slots?.[slotIndex];
-      if (!slot) return;
+      if (!slot) return false;
+
+      if (isHoliday && slot.activities.length > 0) {
+        halfDayStatus.textContent =
+          "Impossible de marquer cette demi-journée comme congé tant qu'une activité y est planifiée. Déplacez ou supprimez l'activité avant de réessayer.";
+        halfDayHolidayInput.checked = false;
+        return false;
+      }
 
       const key = `${weekIndex + 1}-${slotIndex}`;
 
@@ -1097,8 +1104,10 @@
         delete halfDayHolidays[key];
       }
 
+      halfDayStatus.textContent = '';
       persistHolidayOverrides(currentCourseId, halfDayHolidays);
       renderSchedule();
+      return true;
     }
 
     function renderSchedule() {
@@ -1308,8 +1317,10 @@
       halfDayModalBackdrop.addEventListener('click', closeHalfDayModal);
       halfDayForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        updateHalfDayHolidayState(halfDayHolidayInput.checked);
-        closeHalfDayModal();
+        const isUpdated = updateHalfDayHolidayState(halfDayHolidayInput.checked);
+        if (isUpdated) {
+          closeHalfDayModal();
+        }
       });
       rescheduleForm.addEventListener('submit', async (event) => {
         event.preventDefault();
