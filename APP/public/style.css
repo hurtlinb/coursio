@@ -324,6 +324,26 @@ h1 {
   gap: 4px;
 }
 
+.course-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  padding-top: 4px;
+}
+
+.course-detail-row {
+  display: contents;
+}
+
+.course-detail-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.course-detail-value {
+  color: var(--muted);
+}
+
 .course-title {
   background: none;
   border: none;
