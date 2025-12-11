@@ -66,9 +66,9 @@
       </div>
 
       <div class="course-toolbar" aria-label="Sélection des cours">
-        <div>
-          <p class="label">Cours</p>
-          <p class="muted">Choisissez un cours pour gérer les activités, ou créez-en un nouveau.</p>
+        <div class="course-toolbar__intro">
+          <button class="label course-title" id="course-title" type="button">Cours</button>
+          <p class="muted" id="course-details">Connectez-vous pour afficher les informations de votre cours.</p>
         </div>
         <div class="course-toolbar__actions">
           <label class="form-field form-field--inline">
@@ -79,11 +79,40 @@
             <span aria-hidden="true">+</span>
             <span class="sr-only">Créer un nouveau cours</span>
           </button>
-          <button class="icon-button icon-button--danger" id="delete-course" type="button" aria-label="Supprimer le cours sélectionné">
-            <span aria-hidden="true">🗑</span>
-            <span class="sr-only">Supprimer le cours sélectionné</span>
-          </button>
         </div>
+      </div>
+
+      <div class="course-editor is-hidden" id="course-editor" hidden>
+        <form class="course-editor__form" id="course-editor-form">
+          <div class="form-row">
+            <label class="form-field">
+              <span>Numéro du module</span>
+              <input type="text" id="edit-course-number" required>
+            </label>
+            <label class="form-field">
+              <span>Titre du cours</span>
+              <input type="text" id="edit-course-name" required>
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="form-field">
+              <span>Classe</span>
+              <input type="text" id="edit-course-class" required>
+            </label>
+            <label class="form-field">
+              <span>Salle</span>
+              <input type="text" id="edit-course-room" required>
+            </label>
+          </div>
+          <div class="course-editor__actions">
+            <div class="course-editor__action-buttons">
+              <button class="btn btn-primary" type="submit">Mettre à jour</button>
+              <button class="btn btn-danger" type="button" id="course-editor-delete">Supprimer le cours</button>
+            </div>
+            <button class="btn btn-ghost" type="button" id="course-editor-cancel">Fermer</button>
+          </div>
+          <p class="muted" id="course-editor-status"></p>
+        </form>
       </div>
 
         <div class="planner__grid">
@@ -423,10 +452,20 @@
     const courseForm = document.getElementById('course-form');
     const courseModal = document.getElementById('course-modal');
     const courseSelect = document.getElementById('course-select');
+    const courseTitleButton = document.getElementById('course-title');
+    const courseDetails = document.getElementById('course-details');
     const courseStatus = document.getElementById('course-status');
     const courseStartDateInput = document.getElementById('course-start-date');
     const courseStartSlotSelect = document.getElementById('course-start-slot');
-    const deleteCourseBtn = document.getElementById('delete-course');
+    const courseEditor = document.getElementById('course-editor');
+    const courseEditorForm = document.getElementById('course-editor-form');
+    const courseEditorStatus = document.getElementById('course-editor-status');
+    const courseEditorDeleteButton = document.getElementById('course-editor-delete');
+    const courseEditorCancelButton = document.getElementById('course-editor-cancel');
+    const editCourseNumberInput = document.getElementById('edit-course-number');
+    const editCourseNameInput = document.getElementById('edit-course-name');
+    const editCourseClassInput = document.getElementById('edit-course-class');
+    const editCourseRoomInput = document.getElementById('edit-course-room');
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
     const openCourseModalBtn = document.getElementById('open-course-modal');
@@ -495,6 +534,12 @@
     function setCurrentUser(user) {
       currentUser = user;
       updateSessionBanner();
+      if (!user) {
+        coursesCache = [];
+        currentCourseId = null;
+        updateCourseHeader();
+        closeCourseEditor();
+      }
     }
 
     function handleUnauthorized(message = 'Connectez-vous pour continuer.') {
@@ -520,6 +565,34 @@
         const format = iconEl.dataset.formatIcon;
         iconEl.innerHTML = getFormatIconMarkup(format);
       });
+    }
+
+    function formatCourseDetails(course) {
+      if (!course) {
+        return 'Choisissez ou créez un cours pour gérer vos activités.';
+      }
+
+      const startPeriodLabel = course.startPeriod === 'apres_midi' ? 'Après-midi' : 'Matin';
+      const classLabel = course.className ? `Classe ${course.className}` : 'Classe non précisée';
+      const roomLabel = course.room ? `Salle ${course.room}` : 'Salle non précisée';
+      const startLabel = course.startDate ? `Début le ${course.startDate} (${startPeriodLabel})` : 'Date de début inconnue';
+
+      return `${classLabel} · ${roomLabel} · ${startLabel}`;
+    }
+
+    function updateCourseHeader(course = getCurrentCourse()) {
+      if (!courseTitleButton || !courseDetails) return;
+
+      if (!course) {
+        courseTitleButton.textContent = 'Cours';
+        courseDetails.textContent = 'Choisissez ou créez un cours pour gérer vos activités.';
+        courseTitleButton.setAttribute('aria-disabled', 'true');
+        return;
+      }
+
+      courseTitleButton.textContent = `Cours — ${course.moduleNumber} · ${course.moduleName}`;
+      courseTitleButton.removeAttribute('aria-disabled');
+      courseDetails.textContent = formatCourseDetails(course);
     }
 
     function selectFormat(format) {
@@ -606,25 +679,56 @@
       document.getElementById('activity-name').focus();
     }
 
-      function openCourseModal() {
-        if (!currentUser) {
-          showAuthOverlay('login', 'Connectez-vous pour créer un cours.');
-          return;
-        }
+    function openCourseModal() {
+      if (!currentUser) {
+        showAuthOverlay('login', 'Connectez-vous pour créer un cours.');
+        return;
+      }
         courseForm.reset();
         courseStatus.textContent = '';
-        courseModal.removeAttribute('hidden');
-        courseModal.classList.remove('is-hidden');
-        courseStartDateInput.value = new Date().toISOString().slice(0, 10);
-        courseStartSlotSelect.value = 0;
-        courseTeacherDisplay.textContent = currentUser?.displayName || currentUser?.name || '—';
-        document.getElementById('course-class').focus();
+      courseModal.removeAttribute('hidden');
+      courseModal.classList.remove('is-hidden');
+      courseStartDateInput.value = new Date().toISOString().slice(0, 10);
+      courseStartSlotSelect.value = 0;
+      courseTeacherDisplay.textContent = currentUser?.displayName || currentUser?.name || '—';
+      document.getElementById('course-class').focus();
+    }
+
+    function closeCourseModal() {
+      courseModal.setAttribute('hidden', '');
+      courseModal.classList.add('is-hidden');
+    }
+
+    function closeCourseEditor() {
+      if (!courseEditor) return;
+      courseEditor.classList.add('is-hidden');
+      courseEditor.hidden = true;
+      courseEditorStatus.textContent = '';
+    }
+
+    function openCourseEditor() {
+      if (!currentUser) {
+        showAuthOverlay('login', 'Connectez-vous pour modifier un cours.');
+        return;
       }
 
-      function closeCourseModal() {
-        courseModal.setAttribute('hidden', '');
-        courseModal.classList.add('is-hidden');
+      const course = getCurrentCourse();
+
+      if (!course) {
+        courseStatus.textContent = 'Sélectionnez un cours à modifier.';
+        return;
       }
+
+      courseEditorStatus.textContent = '';
+      editCourseNumberInput.value = course.moduleNumber || '';
+      editCourseNameInput.value = course.moduleName || '';
+      editCourseClassInput.value = course.className || '';
+      editCourseRoomInput.value = course.room || '';
+
+      courseEditor.classList.remove('is-hidden');
+      courseEditor.hidden = false;
+      editCourseNumberInput.focus();
+    }
 
     function fillCourseSelect(courses) {
       coursesCache = courses;
@@ -647,11 +751,14 @@
       if (currentCourseId) {
         courseSelect.value = currentCourseId;
       }
+
+      updateCourseHeader();
     }
 
     async function loadCourses() {
       if (!currentUser) {
         courseStatus.textContent = 'Connectez-vous pour afficher vos cours.';
+        updateCourseHeader(null);
         return;
       }
 
@@ -673,6 +780,7 @@
           halfDaySelection = { weekIndex: null, slotIndex: null };
           schedule = createEmptySchedule();
           renderSchedule();
+          updateCourseHeader(null);
           return;
         }
 
@@ -735,6 +843,7 @@
 
         currentCourseId = null;
         courseStatus.textContent = 'Cours supprimé.';
+        closeCourseEditor();
         await loadCourses();
       } catch (error) {
         if (error.message === 'UNAUTHORIZED') return;
@@ -742,8 +851,33 @@
       }
     }
 
-    function isHolidayTarget(event) {
-      return event.currentTarget?.dataset?.holiday === 'true';
+    async function updateCourseMetadata(payload) {
+      if (!currentCourseId) {
+        courseEditorStatus.textContent = 'Sélectionnez un cours avant de le modifier.';
+        return false;
+      }
+
+      courseEditorStatus.textContent = 'Mise à jour du cours en cours...';
+
+      try {
+        const response = await authorizedFetch(`/api/courses/${currentCourseId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Impossible de mettre à jour le cours.');
+        }
+
+        courseEditorStatus.textContent = 'Cours mis à jour.';
+        return true;
+      } catch (error) {
+        if (error.message === 'UNAUTHORIZED') return false;
+        courseEditorStatus.textContent = `⚠️ ${error.message}`;
+        return false;
+      }
     }
 
     function handleDragStart(event) {
@@ -1295,9 +1429,12 @@
       closeActivityModalBtn.addEventListener('click', closeActivityModal);
       activityModalBackdrop.addEventListener('click', closeActivityModal);
       openCourseModalBtn.addEventListener('click', openCourseModal);
-      if (deleteCourseBtn) {
-        deleteCourseBtn.addEventListener('click', deleteCurrentCourse);
-      }
+      courseTitleButton.addEventListener('click', () => {
+        if (courseTitleButton.getAttribute('aria-disabled') === 'true') return;
+        openCourseEditor();
+      });
+      courseEditorCancelButton.addEventListener('click', closeCourseEditor);
+      courseEditorDeleteButton.addEventListener('click', deleteCurrentCourse);
       closeCourseModalBtn.addEventListener('click', closeCourseModal);
       courseModalBackdrop.addEventListener('click', closeCourseModal);
       closeRescheduleModalBtn.addEventListener('click', closeRescheduleModal);
@@ -1395,8 +1532,8 @@
           if (!activityModal.hasAttribute('hidden')) {
             closeActivityModal();
           }
-          if (!halfDayModal.hasAttribute('hidden')) {
-            closeHalfDayModal();
+          if (!courseEditor.classList.contains('is-hidden')) {
+            closeCourseEditor();
           }
         }
       });
@@ -1522,12 +1659,45 @@
       }
     });
 
+    courseEditorForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const moduleNumber = editCourseNumberInput.value.trim();
+      const moduleName = editCourseNameInput.value.trim();
+      const className = editCourseClassInput.value.trim();
+      const room = editCourseRoomInput.value.trim();
+
+      if (!moduleNumber || !moduleName || !className || !room) {
+        courseEditorStatus.textContent = 'Complétez tous les champs pour enregistrer les modifications.';
+        return;
+      }
+
+      const success = await updateCourseMetadata({ moduleNumber, moduleName, className, room });
+
+      if (success) {
+        const course = getCurrentCourse();
+        if (course) {
+          course.moduleNumber = moduleNumber;
+          course.moduleName = moduleName;
+          course.className = className;
+          course.room = room;
+        }
+
+        fillCourseSelect(coursesCache);
+        updateCourseHeader();
+        closeCourseEditor();
+        courseStatus.textContent = 'Cours mis à jour.';
+      }
+    });
+
     courseSelect.addEventListener('change', async (event) => {
       if (!currentUser) {
         showAuthOverlay('login');
         return;
       }
       currentCourseId = Number(event.target.value);
+      closeCourseEditor();
+      updateCourseHeader();
       await loadActivitiesForCourse(currentCourseId);
     });
 
