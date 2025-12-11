@@ -906,6 +906,10 @@
       dropHandled = false;
     }
 
+    function isHolidayTarget(event) {
+      return event?.currentTarget?.dataset?.holiday === 'true';
+    }
+
     function handleDragOver(event) {
       if (isHolidayTarget(event)) return;
       event.preventDefault();
