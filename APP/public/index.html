@@ -12,11 +12,11 @@
     <div class="auth-card">
       <div class="auth-card__header">
         <p class="label" id="auth-title">Bienvenue sur Coursio</p>
-        <p class="muted" id="auth-subtitle">Connectez-vous ou créez un compte enseignant.</p>
+        <p class="muted" id="auth-subtitle">Connectez-vous pour accéder à votre espace enseignant.</p>
       </div>
       <div class="auth-tabs">
         <button class="auth-tab is-active" id="tab-login" type="button">Connexion</button>
-        <button class="auth-tab" id="tab-register" type="button">Créer un compte</button>
+        <button class="auth-tab" id="tab-register" type="button" aria-disabled="true" title="La création de compte est désactivée">Créer un compte</button>
       </div>
       <form class="auth-form" id="login-form">
         <label class="form-field">
@@ -30,20 +30,21 @@
         <button class="btn btn-primary" type="submit">Se connecter</button>
       </form>
 
-      <form class="auth-form is-hidden" id="register-form">
+      <form class="auth-form is-hidden" id="register-form" aria-hidden="true">
         <label class="form-field">
           <span>Nom complet</span>
-          <input type="text" id="register-name" autocomplete="name" required>
+          <input type="text" id="register-name" autocomplete="name" required disabled>
         </label>
         <label class="form-field">
           <span>Email</span>
-          <input type="email" id="register-email" autocomplete="email" required>
+          <input type="email" id="register-email" autocomplete="email" required disabled>
         </label>
         <label class="form-field">
           <span>Mot de passe</span>
-          <input type="password" id="register-password" autocomplete="new-password" minlength="8" required>
+          <input type="password" id="register-password" autocomplete="new-password" minlength="8" required disabled>
         </label>
-        <button class="btn btn-primary" type="submit">Créer mon compte</button>
+        <p class="muted">La création de compte est actuellement désactivée. Contactez votre administrateur pour obtenir un accès.</p>
+        <button class="btn btn-primary" type="submit" disabled>Créer mon compte</button>
       </form>
 
       <p class="muted" id="auth-status" aria-live="polite"></p>
@@ -380,6 +381,7 @@
     const registerEmailInput = document.getElementById('register-email');
     const registerPasswordInput = document.getElementById('register-password');
     const loginPasswordInput = document.getElementById('login-password');
+    const registrationDisabledMessage = 'La création de compte est désactivée. Contactez votre administrateur pour obtenir un accès.';
     let coursesCache = [];
     let draggedActivity = null;
     let dropHandled = false;
@@ -389,23 +391,16 @@
     let currentUser = null;
 
     function showAuthOverlay(mode = 'login', message = '') {
-      authStatus.textContent = message;
+      const statusMessage = message || (mode === 'register' ? registrationDisabledMessage : '');
+      authStatus.textContent = statusMessage;
       authOverlay.classList.remove('is-hidden');
       authOverlay.removeAttribute('hidden');
 
-      if (mode === 'register') {
-        registerForm.classList.remove('is-hidden');
-        loginForm.classList.add('is-hidden');
-        tabRegister.classList.add('is-active');
-        tabLogin.classList.remove('is-active');
-        registerNameInput.focus();
-      } else {
-        loginForm.classList.remove('is-hidden');
-        registerForm.classList.add('is-hidden');
-        tabLogin.classList.add('is-active');
-        tabRegister.classList.remove('is-active');
-        loginEmailInput.focus();
-      }
+      loginForm.classList.remove('is-hidden');
+      registerForm.classList.add('is-hidden');
+      tabLogin.classList.add('is-active');
+      tabRegister.classList.remove('is-active');
+      loginEmailInput.focus();
     }
 
     function hideAuthOverlay() {
@@ -1138,7 +1133,10 @@
       });
 
       tabLogin.addEventListener('click', () => showAuthOverlay('login'));
-      tabRegister.addEventListener('click', () => showAuthOverlay('register'));
+      tabRegister.addEventListener('click', () => showAuthOverlay('register', registrationDisabledMessage));
+
+      tabRegister.setAttribute('aria-disabled', 'true');
+      tabRegister.classList.add('is-disabled');
 
       loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -1168,33 +1166,9 @@
         }
       });
 
-      registerForm.addEventListener('submit', async (event) => {
+      registerForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        authStatus.textContent = 'Création du compte...';
-
-        try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: registerEmailInput.value.trim(),
-              password: registerPasswordInput.value,
-              name: registerNameInput.value.trim()
-            })
-          });
-
-          if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || 'Impossible de créer le compte.');
-          }
-
-          const user = await response.json();
-          setCurrentUser(user);
-          hideAuthOverlay();
-          loadCourses();
-        } catch (error) {
-          authStatus.textContent = `⚠️ ${error.message}`;
-        }
+        showAuthOverlay('register', registrationDisabledMessage);
       });
 
       logoutButton.addEventListener('click', async () => {
