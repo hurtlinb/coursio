@@ -178,6 +178,7 @@ const defaultCourse = {
   room: process.env.DEFAULT_ROOM || 'En ligne',
   moduleNumber: process.env.DEFAULT_MODULE_NUMBER || 'DEMO-001',
   moduleName: process.env.DEFAULT_MODULE_NAME || 'Atelier de planification',
+  generalObjective: process.env.DEFAULT_GENERAL_OBJECTIVE || 'Accompagner les apprenants dans la construction d’un plan pédagogique structuré.',
   startDate: process.env.DEFAULT_START_DATE || new Date().toISOString().slice(0, 10),
   startPeriod: process.env.DEFAULT_START_PERIOD || 'matin'
 };
@@ -284,7 +285,7 @@ async function getCourse(courseId, teacherId) {
 
   const [rows] = await pool.query(
     `SELECT id, teacher_id AS teacherId, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
-            particularites, start_date AS startDate, start_period AS startPeriod
+            general_objective AS generalObjective, particularites, start_date AS startDate, start_period AS startPeriod
      FROM courses
      WHERE ${conditions.join(' AND ')}
      LIMIT 1`,
@@ -407,6 +408,7 @@ async function ensureSchema() {
       room VARCHAR(100) NOT NULL,
       module_number VARCHAR(50) NOT NULL,
       module_name VARCHAR(255) NOT NULL,
+      general_objective TEXT NULL,
       particularites TEXT NULL,
       start_date DATE NOT NULL,
       start_period ENUM('matin', 'apres_midi') NOT NULL,
@@ -415,7 +417,8 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
-  await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS particularites TEXT NULL AFTER module_name;');
+  await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS general_objective TEXT NULL AFTER module_name;');
+  await pool.query('ALTER TABLE courses ADD COLUMN IF NOT EXISTS particularites TEXT NULL AFTER general_objective;');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS half_days (
@@ -510,8 +513,8 @@ async function ensureDefaultCourse(defaultTeacherId) {
   }
 
   const [result] = await pool.query(
-    `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, start_date, start_period)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, general_objective, start_date, start_period)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       defaultTeacherId,
       defaultCourse.teacher,
@@ -519,6 +522,7 @@ async function ensureDefaultCourse(defaultTeacherId) {
       defaultCourse.room,
       defaultCourse.moduleNumber,
       defaultCourse.moduleName,
+      defaultCourse.generalObjective,
       defaultCourse.startDate,
       defaultCourse.startPeriod
     ]
@@ -590,8 +594,9 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 app.get('/api/courses', requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName, particularites,
-              start_date AS startDate, start_period AS startPeriod, created_at AS createdAt
+      `SELECT id, teacher, class AS className, room, module_number AS moduleNumber, module_name AS moduleName,
+              general_objective AS generalObjective, particularites, start_date AS startDate, start_period AS startPeriod,
+              created_at AS createdAt
        FROM courses
        WHERE teacher_id = ?
        ORDER BY created_at DESC`
@@ -608,7 +613,7 @@ app.get('/api/courses', requireAuth, async (req, res) => {
 
 app.post('/api/courses', requireAuth, async (req, res) => {
   try {
-    const { className, room, moduleNumber, moduleName, startDate, startSlot, particularites } = req.body;
+    const { className, room, moduleNumber, moduleName, startDate, startSlot, particularites, generalObjective } = req.body;
 
     if (!className || !room || !moduleNumber || !moduleName) {
       return res.status(400).json({ error: 'Tous les champs du cours sont requis.' });
@@ -620,6 +625,7 @@ app.post('/api/courses', requireAuth, async (req, res) => {
 
     const startSlotIndex = Number(startSlot);
     const notes = typeof particularites === 'string' ? particularites.trim() : '';
+    const objective = typeof generalObjective === 'string' ? generalObjective.trim() : '';
     const startPeriod = slotToPeriod[startSlotIndex];
 
     if (!startPeriod) {
@@ -627,8 +633,8 @@ app.post('/api/courses', requireAuth, async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, particularites, start_date, start_period)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+      `INSERT INTO courses (teacher_id, teacher, class, room, module_number, module_name, general_objective, particularites, start_date, start_period)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
         req.user.id,
         req.user.name,
@@ -636,6 +642,7 @@ app.post('/api/courses', requireAuth, async (req, res) => {
         room.trim(),
         moduleNumber.trim(),
         moduleName.trim(),
+        objective,
         notes,
         startDate,
         startPeriod
@@ -654,7 +661,7 @@ app.post('/api/courses', requireAuth, async (req, res) => {
 app.patch('/api/courses/:courseId', requireAuth, async (req, res) => {
   try {
     const courseId = Number(req.params.courseId);
-    const { className, room, moduleNumber, moduleName, particularites } = req.body || {};
+    const { className, room, moduleNumber, moduleName, particularites, generalObjective } = req.body || {};
 
     if (!Number.isInteger(courseId) || courseId <= 0) {
       return res.status(400).json({ error: 'Identifiant de cours invalide.' });
@@ -674,10 +681,11 @@ app.patch('/api/courses/:courseId', requireAuth, async (req, res) => {
     }
 
     const notes = typeof particularites === 'string' ? particularites.trim() : '';
+    const objective = typeof generalObjective === 'string' ? generalObjective.trim() : '';
 
     await pool.query(
-      'UPDATE courses SET module_number = ?, module_name = ?, class = ?, room = ?, particularites = ? WHERE id = ? AND teacher_id = ?',
-      [moduleNumber.trim(), moduleName.trim(), className.trim(), room.trim(), notes, courseId, req.user.id]
+      'UPDATE courses SET module_number = ?, module_name = ?, class = ?, room = ?, general_objective = ?, particularites = ? WHERE id = ? AND teacher_id = ?',
+      [moduleNumber.trim(), moduleName.trim(), className.trim(), room.trim(), objective, notes, courseId, req.user.id]
     );
 
     res.json({ success: true });

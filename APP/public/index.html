@@ -106,6 +106,10 @@
             </label>
           </div>
           <label class="form-field">
+            <span>Objectif général</span>
+            <textarea id="edit-course-general-objective" rows="2" placeholder="Synthèse de l’intention pédagogique"></textarea>
+          </label>
+          <label class="form-field">
             <span>Particularités</span>
             <textarea id="edit-course-particularities" rows="2" placeholder="Précisions logistiques, modalités, etc."></textarea>
           </label>
@@ -241,6 +245,10 @@
         <label class="form-field">
           <span>Titre du module</span>
           <input type="text" id="course-name" placeholder="Nom du module" required>
+        </label>
+        <label class="form-field">
+          <span>Objectif général</span>
+          <textarea id="course-general-objective" rows="2" placeholder="Synthèse de l’intention pédagogique"></textarea>
         </label>
         <label class="form-field">
           <span>Particularités</span>
@@ -479,6 +487,7 @@
     const courseStatus = document.getElementById('course-status');
     const courseStartDateInput = document.getElementById('course-start-date');
     const courseStartSlotSelect = document.getElementById('course-start-slot');
+    const courseGeneralObjectiveInput = document.getElementById('course-general-objective');
     const courseParticularitiesInput = document.getElementById('course-particularities');
     const courseEditor = document.getElementById('course-editor');
     const courseEditorForm = document.getElementById('course-editor-form');
@@ -489,6 +498,7 @@
     const editCourseNameInput = document.getElementById('edit-course-name');
     const editCourseClassInput = document.getElementById('edit-course-class');
     const editCourseRoomInput = document.getElementById('edit-course-room');
+    const editCourseGeneralObjectiveInput = document.getElementById('edit-course-general-objective');
     const editCourseParticularitiesInput = document.getElementById('edit-course-particularities');
     const closeCourseModalBtn = document.getElementById('close-course-modal');
     const courseModalBackdrop = document.querySelector('[data-close-course-modal]');
@@ -673,6 +683,7 @@
         { label: 'Classe', value: course.className || 'Non précisée' },
         { label: 'Salle', value: course.room || 'Non précisée' },
         { label: 'Date', value: dateRangeLabel },
+        { label: 'Objectif général', value: course.generalObjective?.trim() || 'À définir' },
         { label: 'Particularités', value: course.particularites?.trim() || 'Aucune précision' }
       ];
     }
@@ -853,6 +864,7 @@
       editCourseNameInput.value = course.moduleName || '';
       editCourseClassInput.value = course.className || '';
       editCourseRoomInput.value = course.room || '';
+      editCourseGeneralObjectiveInput.value = course.generalObjective || '';
       editCourseParticularitiesInput.value = course.particularites || '';
 
       courseEditor.classList.remove('is-hidden');
@@ -1896,6 +1908,7 @@
           room: document.getElementById('course-room').value.trim(),
           moduleNumber: document.getElementById('course-number').value.trim(),
           moduleName: document.getElementById('course-name').value.trim(),
+          generalObjective: courseGeneralObjectiveInput.value.trim(),
           particularites: courseParticularitiesInput.value.trim(),
           startDate: courseStartDateInput.value,
           startSlot: courseStartSlotSelect.value
@@ -1931,6 +1944,7 @@
       const moduleName = editCourseNameInput.value.trim();
       const className = editCourseClassInput.value.trim();
       const room = editCourseRoomInput.value.trim();
+      const generalObjective = editCourseGeneralObjectiveInput.value.trim();
       const particularites = editCourseParticularitiesInput.value.trim();
 
       if (!moduleNumber || !moduleName || !className || !room) {
@@ -1938,7 +1952,7 @@
         return;
       }
 
-      const success = await updateCourseMetadata({ moduleNumber, moduleName, className, room, particularites });
+      const success = await updateCourseMetadata({ moduleNumber, moduleName, className, room, particularites, generalObjective });
 
       if (success) {
         const course = getCurrentCourse();
@@ -1947,6 +1961,7 @@
           course.moduleName = moduleName;
           course.className = className;
           course.room = room;
+          course.generalObjective = generalObjective;
           course.particularites = particularites;
         }
 
