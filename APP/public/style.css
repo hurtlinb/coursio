@@ -322,12 +322,22 @@ h1 {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(120deg, rgba(124, 58, 237, 0.08), rgba(34, 211, 238, 0.08));
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .course-toolbar__intro {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.course-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .course-selector {
@@ -382,6 +392,17 @@ h1 {
 .course-title:focus-visible {
   color: var(--primary);
   text-decoration: underline;
+}
+
+.print-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.print-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .course-toolbar__actions {
@@ -1172,6 +1193,58 @@ h1 {
   text-align: center;
   padding: 24px;
   color: var(--muted);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :root {
+    --text: #0f172a;
+    --muted: #475569;
+    --primary: #0f172a;
+    color: #0f172a;
+  }
+
+  body {
+    background: #fff;
+    color: #0f172a;
+  }
+
+  .sections,
+  .planner,
+  .planner__grid,
+  .course-toolbar,
+  .course-selector,
+  .course-editor,
+  .panel-card,
+  .timeline,
+  .timeline__grid,
+  .slot__content,
+  .activity,
+  .course-form,
+  .course-form__actions,
+  .activity-form__buttons {
+    background: #fff !important;
+    box-shadow: none;
+    border-color: #e2e8f0;
+  }
+
+  .course-toolbar {
+    border-color: #cbd5e1;
+  }
+
+  .auth-overlay,
+  .course-modal,
+  .activity-modal,
+  .realtime-modal,
+  .reschedule-modal,
+  .half-day-modal,
+  .print-button {
+    display: none !important;
+  }
 }
 
 @media (max-width: 720px) {

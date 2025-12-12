@@ -81,6 +81,16 @@
           <button class="label course-title" id="course-title" type="button">Sélectionnez un module</button>
           <div class="muted course-details" id="course-details">Connectez-vous pour afficher les informations de votre cours.</div>
         </div>
+        <div class="course-toolbar__actions">
+          <button class="icon-button icon-button--ghost print-button" id="print-page" type="button" aria-label="Imprimer la page" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 9v-4.5h12V9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+              <rect x="6" y="15" width="12" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <path d="M5 11h14a2 2 0 0 1 2 2v4H3v-4a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <path d="M9 5h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="course-editor is-hidden" id="course-editor" hidden>
@@ -590,6 +600,7 @@
     const courseSelect = document.getElementById('course-select');
     const courseTitleButton = document.getElementById('course-title');
     const courseDetails = document.getElementById('course-details');
+    const printPageButton = document.getElementById('print-page');
     const courseStatus = document.getElementById('course-status');
     const courseStartDateInput = document.getElementById('course-start-date');
     const courseStartSlotSelect = document.getElementById('course-start-slot');
@@ -842,11 +853,17 @@
         courseTitleButton.textContent = 'Sélectionnez un module';
         renderCourseDetails(null);
         courseTitleButton.setAttribute('aria-disabled', 'true');
+        if (printPageButton) {
+          printPageButton.setAttribute('disabled', '');
+        }
         return;
       }
 
       courseTitleButton.textContent = `${course.moduleNumber} · ${course.moduleName}`;
       courseTitleButton.removeAttribute('aria-disabled');
+      if (printPageButton) {
+        printPageButton.removeAttribute('disabled');
+      }
       renderCourseDetails(course);
     }
 
@@ -2145,6 +2162,9 @@
       closeActivityModalBtn.addEventListener('click', closeActivityModal);
       activityModalBackdrop.addEventListener('click', closeActivityModal);
       openCourseModalBtn.addEventListener('click', openCourseModal);
+      if (printPageButton) {
+        printPageButton.addEventListener('click', () => window.print());
+      }
       courseTitleButton.addEventListener('click', () => {
         if (courseTitleButton.getAttribute('aria-disabled') === 'true') return;
         openCourseEditor();
