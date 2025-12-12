@@ -1243,9 +1243,14 @@
       return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     }
 
+    function formatPlanningTimeLabel(isoString) {
+      const label = formatTimeLabel(isoString);
+      return label === '--:--' ? label : label.replace(':', 'h');
+    }
+
     function getRealTimeLabel(activity) {
-      const startLabel = formatTimeLabel(activity.actualStart);
-      const endLabel = formatTimeLabel(activity.actualEnd);
+      const startLabel = formatPlanningTimeLabel(activity.actualStart);
+      const endLabel = formatPlanningTimeLabel(activity.actualEnd);
 
       if (!activity.actualStart && !activity.actualEnd) {
         return '';
