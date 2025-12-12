@@ -1277,7 +1277,20 @@
       if (!normalizedTime) return null;
 
       const [hours, minutes] = normalizedTime.split(':').map((part) => Number(part));
-      const referenceDate = activity.sessionDate || new Date().toISOString().slice(0, 10);
+      const todayIsoDate = new Date().toISOString().slice(0, 10);
+
+      let referenceDate = activity.sessionDate || todayIsoDate;
+      if (referenceDate instanceof Date) {
+        referenceDate = referenceDate.toISOString().slice(0, 10);
+      }
+
+      if (typeof referenceDate === 'string') {
+        const parsedReference = new Date(referenceDate);
+        referenceDate = Number.isNaN(parsedReference.getTime())
+          ? todayIsoDate
+          : parsedReference.toISOString().slice(0, 10);
+      }
+
       const isoString = `${referenceDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
       const parsed = new Date(isoString);
 
@@ -1390,10 +1403,19 @@
         sessionDate: realTimeContext.sessionDate || realTimeContext.activity.sessionDate
       };
 
-      return {
-        actualStart: startValue ? buildIsoFromTime(activityContext, startValue) : null,
-        actualEnd: endValue ? buildIsoFromTime(activityContext, endValue) : null
-      };
+      const payload = {};
+
+      if (startValue) {
+        const startIso = buildIsoFromTime(activityContext, startValue);
+        if (startIso) payload.actualStart = startIso;
+      }
+
+      if (endValue) {
+        const endIso = buildIsoFromTime(activityContext, endValue);
+        if (endIso) payload.actualEnd = endIso;
+      }
+
+      return payload;
     }
 
     async function persistRealtimeTiming(payload) {
@@ -1441,7 +1463,10 @@
       }
 
       const payload = buildRealtimePayload(normalizedStart, normalizedEnd);
-      if (!payload) return;
+      if (!payload || Object.keys(payload).length === 0) {
+        realtimeStatus.textContent = 'Horaires invalides. Vérifiez les champs saisis.';
+        return;
+      }
 
       await persistRealtimeTiming(payload);
     }
