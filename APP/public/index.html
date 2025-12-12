@@ -399,7 +399,6 @@
           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6" />
           <path d="M10 8.5 16 12l-6 3.5Z" fill="currentColor" />
         </svg>
-        <span class="activity__timer-icon-label">Start</span>
       </span>
       <span class="sr-only">Démarrer</span>
     `;
@@ -1539,11 +1538,12 @@
         const timerButton = document.createElement('button');
         const isRunning = Boolean(activity.actualStart && !activity.actualEnd);
         timerButton.type = 'button';
-        timerButton.className = 'activity__timer-button btn btn-primary';
         if (isRunning) {
+          timerButton.className = 'activity__timer-button activity__timer-button--running btn btn-primary';
           timerButton.textContent = 'Arrêter';
           timerButton.setAttribute('aria-label', 'Arrêter le chronomètre');
         } else {
+          timerButton.className = 'activity__timer-button activity__timer-button--start icon-button icon-button--compact';
           timerButton.innerHTML = timerStartIconMarkup;
           timerButton.setAttribute('aria-label', 'Démarrer le chronomètre');
         }
