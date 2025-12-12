@@ -1518,22 +1518,6 @@
 
       metaColumn.appendChild(duration);
 
-      const realTimeButton = document.createElement('button');
-      realTimeButton.type = 'button';
-      realTimeButton.className = 'activity__realtime';
-      const realTimeLabel = getRealTimeLabel(activity);
-      realTimeButton.textContent = realTimeLabel;
-      realTimeButton.classList.toggle('activity__realtime--empty', realTimeLabel === '');
-      realTimeButton.setAttribute('aria-label', realTimeLabel || 'Ajouter des heures réelles');
-      realTimeButton.title = 'Modifier les heures réelles';
-      realTimeButton.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const slot = schedule[weekIndex]?.slots?.[slotIndex];
-        openRealtimeModal(activity, slot);
-      });
-
-      metaColumn.appendChild(realTimeButton);
-
       if (isTrackableActivity(weekIndex, slotIndex, activityIndex)) {
         const timerButton = document.createElement('button');
         const isRunning = Boolean(activity.actualStart && !activity.actualEnd);
@@ -1600,10 +1584,26 @@
 
       activityEl.appendChild(header);
 
-      const detailsText = activity.details || 'Description à compléter';
       const detailsRow = document.createElement('div');
       detailsRow.className = 'activity__details-row';
 
+      const realTimeButton = document.createElement('button');
+      realTimeButton.type = 'button';
+      realTimeButton.className = 'activity__realtime activity__details-chip';
+      const realTimeLabel = getRealTimeLabel(activity);
+      realTimeButton.textContent = realTimeLabel || 'Heure réelle';
+      realTimeButton.classList.toggle('activity__realtime--empty', realTimeLabel === '');
+      realTimeButton.setAttribute('aria-label', realTimeLabel || 'Ajouter des heures réelles');
+      realTimeButton.title = 'Modifier les heures réelles';
+      realTimeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const slot = schedule[weekIndex]?.slots?.[slotIndex];
+        openRealtimeModal(activity, slot);
+      });
+
+      detailsRow.appendChild(realTimeButton);
+
+      const detailsText = activity.details || 'Description à compléter';
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
@@ -1616,45 +1616,9 @@
             .filter(Boolean)
         : [];
 
-      const materials = document.createElement('div');
-      materials.className = 'activity__materials';
-      materials.setAttribute('aria-label', 'Matériel');
-
-      const materialsLabel = document.createElement('span');
-      materialsLabel.className = 'sr-only';
-      materialsLabel.textContent = 'Matériel :';
-
-      const materialsList = document.createElement('div');
-      materialsList.className = 'activity__materials-list';
-
-      if (materialItems.length > 0) {
-        materialItems.forEach((item) => {
-          const materialRow = document.createElement('div');
-          materialRow.className = 'activity__materials-item';
-
-          const materialsIcon = document.createElement('span');
-          materialsIcon.className = 'activity__materials-icon';
-          materialsIcon.setAttribute('aria-hidden', 'true');
-          materialsIcon.innerHTML =
-            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7.5L19 7.5V21H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 3v5H19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 13H15m-5.5 4H15m-5.5-8h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-
-          const materialsText = document.createElement('span');
-          materialsText.className = 'activity__materials-text';
-          materialsText.textContent = item;
-
-          materialRow.appendChild(materialsIcon);
-          materialRow.appendChild(materialsText);
-          materialsList.appendChild(materialRow);
-        });
-      } else {
-        const emptyMaterials = document.createElement('span');
-        emptyMaterials.className = 'empty';
-        emptyMaterials.textContent = 'Aucune ressource';
-        materialsList.appendChild(emptyMaterials);
-      }
-
-      materials.appendChild(materialsLabel);
-      materials.appendChild(materialsList);
+      const materials = document.createElement('span');
+      materials.className = 'activity__materials-summary';
+      materials.textContent = materialItems.length > 0 ? materialItems.join(', ') : 'Aucune ressource';
       detailsRow.appendChild(materials);
 
       activityEl.appendChild(detailsRow);
