@@ -836,7 +836,8 @@ h1 {
 
 .activity {
   --activity-duration-width: 132px;
-  --activity-duration-gap: 8px;
+  --activity-duration-icon-size: 16px;
+  --activity-duration-gap: 6px;
   --activity-title-indent: 32px;
 }
 
@@ -884,12 +885,15 @@ h1 {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  padding-left: calc(
+    var(--activity-duration-icon-size) + var(--activity-duration-gap)
+  );
 }
 
 .activity__duration {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--activity-duration-gap);
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
@@ -943,8 +947,8 @@ h1 {
 
 .activity__duration-icon {
   display: inline-flex;
-  width: 16px;
-  height: 16px;
+  width: var(--activity-duration-icon-size);
+  height: var(--activity-duration-icon-size);
   color: var(--accent-2);
 }
 
