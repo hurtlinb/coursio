@@ -864,26 +864,25 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  font-size: 12px;
-  color: var(--text);
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .activity__realtime--empty {
-  justify-content: center;
-  color: var(--muted);
-  min-width: 44px;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
 .activity__realtime:hover,
 .activity__realtime:focus-visible {
-  border-color: var(--accent-2);
-  outline: none;
+  color: var(--text);
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
 }
 
 .activity__timer-button {
@@ -948,9 +947,10 @@ h1 {
   color: var(--text);
 }
 
+
 .activity__details-row {
   display: grid;
-  grid-template-columns: var(--activity-duration-width) repeat(2, minmax(0, 1fr));
+  grid-template-columns: var(--activity-duration-width) minmax(0, 1fr);
   align-items: flex-start;
   column-gap: 16px;
   row-gap: 8px;
@@ -961,49 +961,9 @@ h1 {
   color: inherit;
 }
 
-.activity__timing {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.activity__timing-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.activity__timing-icon {
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  color: var(--accent-2);
-}
-
-.activity__timing-icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.activity__timing-text {
-  color: inherit;
-}
-
-.activity__timing-edit {
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
-  border-radius: 10px;
-  color: var(--muted);
-}
-
-.activity__timing-edit svg {
-  width: 18px;
-  height: 18px;
+.activity__details,
+.activity__materials {
+  grid-column: 2;
 }
 
 .activity__materials {
