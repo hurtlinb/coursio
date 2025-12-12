@@ -1494,12 +1494,11 @@
       activityEl.dataset.index = activityIndex;
       activityEl.dataset.id = activity.id;
 
-      const header = document.createElement('div');
-      header.className = 'activity__header';
+      const grid = document.createElement('div');
+      grid.className = 'activity__grid';
 
-      const metaColumn = document.createElement('div');
-      metaColumn.className = 'activity__meta';
-
+      const plannedCell = document.createElement('div');
+      plannedCell.className = 'activity__cell activity__cell--planned';
       const duration = document.createElement('div');
       duration.className = 'activity__duration';
       duration.setAttribute('aria-label', `${activity.duration} minutes`);
@@ -1516,7 +1515,50 @@
       duration.appendChild(durationIcon);
       duration.appendChild(durationText);
 
-      metaColumn.appendChild(duration);
+      plannedCell.appendChild(duration);
+
+      const typeCell = document.createElement('div');
+      typeCell.className = 'activity__cell activity__cell--type';
+
+      const type = document.createElement('div');
+      type.className = 'activity__type';
+      type.title = supportedFormats[activity.type] || activity.type;
+
+      const typeIcon = document.createElement('span');
+      typeIcon.className = 'format-icon';
+      typeIcon.innerHTML = getFormatIconMarkup(activity.type);
+      typeIcon.setAttribute('aria-hidden', 'true');
+
+      const typeText = document.createElement('span');
+      typeText.textContent = supportedFormats[activity.type] || activity.type;
+
+      type.appendChild(typeIcon);
+      type.appendChild(typeText);
+
+      typeCell.appendChild(type);
+
+      const titleCell = document.createElement('div');
+      titleCell.className = 'activity__cell activity__cell--title';
+
+      const title = document.createElement('button');
+      title.type = 'button';
+      title.className = 'activity__title activity__title-button';
+      title.textContent = activity.name;
+      title.title = `Modifier l'activité ${activity.name}`;
+      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
+      title.addEventListener('click', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
+      });
+
+      titleCell.appendChild(title);
+
+      const realTimeCell = document.createElement('div');
+      realTimeCell.className = 'activity__cell activity__cell--realtime';
+
+      const realTimeActions = document.createElement('div');
+      realTimeActions.className = 'activity__realtime-actions';
 
       const realTimeButton = document.createElement('button');
       realTimeButton.type = 'button';
@@ -1532,7 +1574,7 @@
         openRealtimeModal(activity, slot);
       });
 
-      metaColumn.appendChild(realTimeButton);
+      realTimeActions.appendChild(realTimeButton);
 
       if (isTrackableActivity(weekIndex, slotIndex, activityIndex)) {
         const timerButton = document.createElement('button');
@@ -1559,55 +1601,20 @@
           });
         });
 
-        metaColumn.appendChild(timerButton);
+        realTimeActions.appendChild(timerButton);
       }
 
-      const type = document.createElement('span');
-      type.className = 'activity__type';
-      type.title = supportedFormats[activity.type] || activity.type;
+      realTimeCell.appendChild(realTimeActions);
 
-      const typeIcon = document.createElement('span');
-      typeIcon.className = 'format-icon';
-      typeIcon.innerHTML = getFormatIconMarkup(activity.type);
-      typeIcon.setAttribute('aria-hidden', 'true');
-
-      const typeLabel = document.createElement('span');
-      typeLabel.className = 'sr-only';
-      typeLabel.textContent = supportedFormats[activity.type] || activity.type;
-
-      type.appendChild(typeIcon);
-      type.appendChild(typeLabel);
-
-      const title = document.createElement('button');
-      title.type = 'button';
-      title.className = 'activity__title activity__title-button';
-      title.textContent = activity.name;
-      title.title = `Modifier l'activité ${activity.name}`;
-      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
-      title.addEventListener('click', (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
-      });
-
-      const titleRow = document.createElement('div');
-      titleRow.className = 'activity__title-row';
-      titleRow.appendChild(type);
-      titleRow.appendChild(title);
-
-      header.appendChild(metaColumn);
-      header.appendChild(titleRow);
-
-      activityEl.appendChild(header);
+      const detailsCell = document.createElement('div');
+      detailsCell.className = 'activity__cell activity__cell--details';
 
       const detailsText = activity.details || 'Description à compléter';
-      const detailsRow = document.createElement('div');
-      detailsRow.className = 'activity__details-row';
-
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
-      detailsRow.appendChild(details);
+
+      detailsCell.appendChild(details);
 
       const materialItems = activity.materials
         ? activity.materials
@@ -1616,13 +1623,12 @@
             .filter(Boolean)
         : [];
 
+      const materialsCell = document.createElement('div');
+      materialsCell.className = 'activity__cell activity__cell--materials';
+
       const materials = document.createElement('div');
       materials.className = 'activity__materials';
       materials.setAttribute('aria-label', 'Matériel');
-
-      const materialsLabel = document.createElement('span');
-      materialsLabel.className = 'sr-only';
-      materialsLabel.textContent = 'Matériel :';
 
       const materialsList = document.createElement('div');
       materialsList.className = 'activity__materials-list';
@@ -1653,11 +1659,17 @@
         materialsList.appendChild(emptyMaterials);
       }
 
-      materials.appendChild(materialsLabel);
       materials.appendChild(materialsList);
-      detailsRow.appendChild(materials);
+      materialsCell.appendChild(materials);
 
-      activityEl.appendChild(detailsRow);
+      grid.appendChild(plannedCell);
+      grid.appendChild(typeCell);
+      grid.appendChild(titleCell);
+      grid.appendChild(realTimeCell);
+      grid.appendChild(detailsCell);
+      grid.appendChild(materialsCell);
+
+      activityEl.appendChild(grid);
 
       activityEl.addEventListener('dragstart', handleDragStart);
       activityEl.addEventListener('dragend', handleDragEnd);
