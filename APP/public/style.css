@@ -901,11 +901,23 @@ h1 {
 }
 
 .activity__materials {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: inherit;
+  justify-self: end;
+}
+
+.activity__materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity__materials-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: inherit;
-  justify-self: end;
 }
 
 .activity__materials-icon {
