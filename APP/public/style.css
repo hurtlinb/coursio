@@ -919,18 +919,20 @@ h1 {
   flex-direction: column;
   gap: 6px;
   color: inherit;
-  justify-self: end;
+  justify-self: start;
+  align-items: flex-start;
 }
 
 .activity__materials-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  align-items: flex-start;
 }
 
 .activity__materials-item {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
