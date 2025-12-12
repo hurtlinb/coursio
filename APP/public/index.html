@@ -383,7 +383,9 @@
         slots: Array.from({ length: 3 }, (__, slotIndex) => ({
           label: `Créneau ${slotIndex + 1}`,
           activities: [],
-          isHoliday: Boolean(holidays[`${index + 1}-${slotIndex}`])
+          isHoliday: Boolean(holidays[`${index + 1}-${slotIndex}`]),
+          sessionDate: null,
+          period: null
         }))
       }));
 
@@ -399,7 +401,9 @@
         weeksSchedule[weekIndex].slots[slotIndex] = {
           label: formatHalfDayLabel(halfDay),
           activities: [],
-          isHoliday
+          isHoliday,
+          sessionDate: halfDay.sessionDate,
+          period: halfDay.period
         };
       });
 
@@ -456,6 +460,7 @@
     let rescheduleWeekIndex = null;
     let halfDaySelection = { weekIndex: null, slotIndex: null };
     let halfDayHolidays = {};
+    let nextTrackableActivity = null;
 
     const timeline = document.getElementById('timeline');
     const authOverlay = document.getElementById('auth-overlay');
@@ -1117,6 +1122,106 @@
       slot.activities.push(activity);
     }
 
+    function formatTimeLabel(isoString) {
+      if (!isoString) return '--:--';
+      const date = new Date(isoString);
+      if (Number.isNaN(date.getTime())) return '--:--';
+
+      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getRealTimeLabel(activity) {
+      const startLabel = formatTimeLabel(activity.actualStart);
+      const endLabel = formatTimeLabel(activity.actualEnd);
+
+      if (!activity.actualStart && !activity.actualEnd) {
+        return 'Réel : à saisir';
+      }
+
+      if (activity.actualStart && !activity.actualEnd) {
+        return `Réel : ${startLabel} - en cours`;
+      }
+
+      return `Réel : ${startLabel} - ${endLabel}`;
+    }
+
+    function buildIsoFromTime(activity, timeString) {
+      if (!timeString) return null;
+      const [hours, minutes] = timeString.split(':').map((part) => Number(part));
+      if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+        return null;
+      }
+
+      const referenceDate = activity.sessionDate || new Date().toISOString().slice(0, 10);
+      const isoString = `${referenceDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+      const parsed = new Date(isoString);
+
+      if (Number.isNaN(parsed.getTime())) return null;
+      return parsed.toISOString();
+    }
+
+    function parseManualTimeInput(rawInput, activity) {
+      const value = (rawInput || '').trim();
+      if (!value) {
+        return { actualStart: null, actualEnd: null };
+      }
+
+      const [startRaw, endRaw] = value.split('-').map((part) => part.trim());
+
+      const startIso = startRaw ? buildIsoFromTime(activity, startRaw) : undefined;
+      const endIso = endRaw ? buildIsoFromTime(activity, endRaw) : undefined;
+
+      if (startRaw && !startIso) {
+        throw new Error('Format de début invalide. Utilisez HH:MM.');
+      }
+
+      if (endRaw && !endIso) {
+        throw new Error('Format de fin invalide. Utilisez HH:MM.');
+      }
+
+      if (startIso && endIso) {
+        const startDate = new Date(startIso);
+        const endDate = new Date(endIso);
+
+        if (endDate < startDate) {
+          throw new Error("L'heure de fin doit être après l'heure de début.");
+        }
+      }
+
+      return { actualStart: startIso ?? undefined, actualEnd: endIso ?? undefined };
+    }
+
+    function findNextTrackableActivity() {
+      const weeks = schedule || [];
+      for (let weekIndex = 0; weekIndex < weeks.length; weekIndex += 1) {
+        const slots = weeks[weekIndex]?.slots || [];
+        for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
+          const slot = slots[slotIndex];
+          if (!slot || slot.isHoliday) continue;
+
+          for (let activityIndex = 0; activityIndex < slot.activities.length; activityIndex += 1) {
+            const activity = slot.activities[activityIndex];
+            if (!activity) continue;
+
+            if (!activity.actualEnd) {
+              return { weekIndex, slotIndex, activityIndex };
+            }
+          }
+        }
+      }
+
+      return null;
+    }
+
+    function isTrackableActivity(weekIndex, slotIndex, activityIndex) {
+      if (!nextTrackableActivity) return false;
+      return (
+        weekIndex === nextTrackableActivity.weekIndex &&
+        slotIndex === nextTrackableActivity.slotIndex &&
+        activityIndex === nextTrackableActivity.activityIndex
+      );
+    }
+
     function createActivityElement(activity, weekIndex, slotIndex, activityIndex) {
       const activityEl = document.createElement('div');
       activityEl.className = 'activity';
@@ -1149,6 +1254,59 @@
       duration.appendChild(durationText);
 
       metaColumn.appendChild(duration);
+
+      const realTimeButton = document.createElement('button');
+      realTimeButton.type = 'button';
+      realTimeButton.className = 'activity__realtime';
+      realTimeButton.textContent = getRealTimeLabel(activity);
+      realTimeButton.title = 'Modifier les heures réelles';
+      realTimeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const currentValue = `${formatTimeLabel(activity.actualStart)}${activity.actualEnd ? ` - ${formatTimeLabel(activity.actualEnd)}` : ''}`.replace(
+          /^--:--\s?-?\s?/, ''
+        );
+        const userInput = window.prompt('Heures réelles (HH:MM-HH:MM). Laissez vide pour effacer.', currentValue.trim());
+        if (userInput === null) return;
+
+        try {
+          const parsed = parseManualTimeInput(userInput, activity);
+          const payload = {};
+          if (parsed.actualStart !== undefined) payload.actualStart = parsed.actualStart;
+          if (parsed.actualEnd !== undefined) payload.actualEnd = parsed.actualEnd;
+
+          updateActivityTiming(activity.id, payload).then((result) => {
+            if (!result) return;
+            activity.actualStart = result.actualStart;
+            activity.actualEnd = result.actualEnd;
+            renderSchedule();
+          });
+        } catch (error) {
+          activityStatus.textContent = `⚠️ ${error.message}`;
+        }
+      });
+
+      metaColumn.appendChild(realTimeButton);
+
+      if (isTrackableActivity(weekIndex, slotIndex, activityIndex)) {
+        const timerButton = document.createElement('button');
+        const isRunning = Boolean(activity.actualStart && !activity.actualEnd);
+        timerButton.type = 'button';
+        timerButton.className = 'activity__timer-button btn btn-primary';
+        timerButton.textContent = isRunning ? 'Arrêter' : 'Démarrer';
+        timerButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const nowIso = new Date().toISOString();
+          const payload = isRunning ? { actualEnd: nowIso } : { actualStart: nowIso, actualEnd: null };
+          updateActivityTiming(activity.id, payload).then((result) => {
+            if (!result) return;
+            activity.actualStart = result.actualStart;
+            activity.actualEnd = result.actualEnd;
+            renderSchedule();
+          });
+        });
+
+        metaColumn.appendChild(timerButton);
+      }
 
       const type = document.createElement('span');
       type.className = 'activity__type';
@@ -1461,6 +1619,7 @@
     }
 
     function renderSchedule() {
+      nextTrackableActivity = findNextTrackableActivity();
       timeline.innerHTML = '';
 
       schedule.forEach((week, weekIndex) => {
@@ -1559,7 +1718,11 @@
               type: activity.type,
               details: activity.details,
               duration: activity.duration,
-              materials: activity.materials
+              materials: activity.materials,
+              actualStart: activity.actualStart,
+              actualEnd: activity.actualEnd,
+              sessionDate: activity.sessionDate,
+              period: activity.period
             });
           }
         });
@@ -1635,6 +1798,30 @@
           if (error.message === 'UNAUTHORIZED') return false;
           activityStatus.textContent = `⚠️ ${error.message}`;
           return false;
+        }
+      }
+
+      async function updateActivityTiming(activityId, payload) {
+        if (!activityId) return null;
+
+        try {
+          const response = await authorizedFetch(`/api/activities/${activityId}/timing`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Impossible de mettre à jour les heures réelles.');
+          }
+
+          activityStatus.textContent = 'Heures réelles mises à jour.';
+          return response.json();
+        } catch (error) {
+          if (error.message === 'UNAUTHORIZED') return null;
+          activityStatus.textContent = `⚠️ ${error.message}`;
+          return null;
         }
       }
 
@@ -1811,7 +1998,18 @@
 
         persistActivity(activityPayload).then((activityId) => {
           if (activityId) {
-            const duplicatedActivity = { id: activityId, name, type, details, duration, materials };
+            const duplicatedActivity = {
+              id: activityId,
+              name,
+              type,
+              details,
+              duration,
+              materials,
+              actualStart: null,
+              actualEnd: null,
+              sessionDate: targetSlotRef.sessionDate,
+              period: targetSlotRef.period
+            };
             targetSlotRef.activities.push(duplicatedActivity);
             renderSchedule();
             activityStatus.textContent = 'Activité dupliquée dans la demi-journée suivante.';
@@ -1879,7 +2077,20 @@
         activityStatus.textContent = "Mise à jour de l’activité en cours...";
         updateActivity(editingActivity.id, activityPayload).then((success) => {
           if (success) {
-            const updatedActivity = { id: editingActivity.id, name, type, details, duration, materials };
+            const currentActivity =
+              schedule[targetWeekIndex].slots[targetSlotIndex].activities[editingActivity.activityIndex] || {};
+            const updatedActivity = {
+              id: editingActivity.id,
+              name,
+              type,
+              details,
+              duration,
+              materials,
+              actualStart: currentActivity.actualStart || null,
+              actualEnd: currentActivity.actualEnd || null,
+              sessionDate: currentActivity.sessionDate,
+              period: currentActivity.period
+            };
             schedule[targetWeekIndex].slots[targetSlotIndex].activities[editingActivity.activityIndex] = updatedActivity;
 
             renderSchedule();
@@ -1891,7 +2102,17 @@
       }
 
       const targetSlot = schedule[targetWeekIndex].slots[targetSlotIndex];
-      const activity = { name, type, details, duration, materials };
+      const activity = {
+        name,
+        type,
+        details,
+        duration,
+        materials,
+        actualStart: null,
+        actualEnd: null,
+        sessionDate: targetSlot.sessionDate,
+        period: targetSlot.period
+      };
       activityStatus.textContent = 'Enregistrement de l’activité en cours...';
       persistActivity(activityPayload).then((activityId) => {
         if (activityId) {
