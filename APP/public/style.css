@@ -1198,7 +1198,7 @@ h1 {
 @media print {
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 10mm;
   }
 
   :root {
@@ -1211,9 +1211,16 @@ h1 {
   body {
     background: #fff;
     color: #0f172a;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
-  .sections,
+  .sections {
+    padding: 0;
+    gap: 12px;
+  }
+
+  .section,
   .planner,
   .planner__grid,
   .course-toolbar,
@@ -1222,18 +1229,87 @@ h1 {
   .panel-card,
   .timeline,
   .timeline__grid,
+  .week-card,
+  .slots,
+  .slot,
   .slot__content,
   .activity,
   .course-form,
   .course-form__actions,
   .activity-form__buttons {
-    background: #fff !important;
+    background: none !important;
     box-shadow: none;
-    border-color: #e2e8f0;
+    border: none;
   }
 
-  .course-toolbar {
-    border-color: #cbd5e1;
+  .planner {
+    gap: 12px;
+  }
+
+  .course-toolbar,
+  .course-selector {
+    padding: 0;
+  }
+
+  .timeline__grid {
+    gap: 8px;
+  }
+
+  .week-card {
+    padding: 0;
+    gap: 6px;
+  }
+
+  .slots {
+    gap: 6px;
+  }
+
+  .slot {
+    padding: 0;
+    gap: 4px;
+  }
+
+  .slot__label {
+    font-size: 13px;
+    color: inherit;
+  }
+
+  .slot__content {
+    gap: 4px;
+    min-height: 0;
+  }
+
+  .activity {
+    padding: 0 0 4px 0;
+    gap: 2px;
+    cursor: default;
+  }
+
+  .activity__grid {
+    display: grid;
+    grid-template-columns: 78px 150px 1fr 1fr;
+    grid-template-areas:
+      'planned type details materials'
+      'realtime type details materials';
+    column-gap: 8px;
+    row-gap: 2px;
+    align-items: start;
+  }
+
+  .activity__cell {
+    gap: 2px;
+  }
+
+  .activity__cell--details {
+    padding-left: 0;
+  }
+
+  .activity__materials {
+    gap: 2px;
+  }
+
+  .activity__materials-list {
+    gap: 2px;
   }
 
   .auth-overlay,
