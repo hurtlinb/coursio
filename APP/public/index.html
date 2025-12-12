@@ -1497,6 +1497,9 @@
       const header = document.createElement('div');
       header.className = 'activity__header';
 
+      const metaColumn = document.createElement('div');
+      metaColumn.className = 'activity__meta';
+
       const duration = document.createElement('div');
       duration.className = 'activity__duration';
       duration.setAttribute('aria-label', `${activity.duration} minutes`);
@@ -1513,6 +1516,8 @@
       duration.appendChild(durationIcon);
       duration.appendChild(durationText);
 
+      metaColumn.appendChild(duration);
+
       const realTimeButton = document.createElement('button');
       realTimeButton.type = 'button';
       realTimeButton.className = 'activity__realtime';
@@ -1526,6 +1531,36 @@
         const slot = schedule[weekIndex]?.slots?.[slotIndex];
         openRealtimeModal(activity, slot);
       });
+
+      metaColumn.appendChild(realTimeButton);
+
+      if (isTrackableActivity(weekIndex, slotIndex, activityIndex)) {
+        const timerButton = document.createElement('button');
+        const isRunning = Boolean(activity.actualStart && !activity.actualEnd);
+        timerButton.type = 'button';
+        if (isRunning) {
+          timerButton.className = 'activity__timer-button activity__timer-button--running btn btn-primary';
+          timerButton.textContent = 'Arrêter';
+          timerButton.setAttribute('aria-label', 'Arrêter le chronomètre');
+        } else {
+          timerButton.className = 'activity__timer-button activity__timer-button--start icon-button icon-button--compact';
+          timerButton.innerHTML = timerStartIconMarkup;
+          timerButton.setAttribute('aria-label', 'Démarrer le chronomètre');
+        }
+        timerButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const nowIso = new Date().toISOString();
+          const payload = isRunning ? { actualEnd: nowIso } : { actualStart: nowIso, actualEnd: null };
+          updateActivityTiming(activity.id, payload).then((result) => {
+            if (!result) return;
+            activity.actualStart = result.actualStart;
+            activity.actualEnd = result.actualEnd;
+            renderSchedule();
+          });
+        });
+
+        metaColumn.appendChild(timerButton);
+      }
 
       const type = document.createElement('span');
       type.className = 'activity__type';
@@ -1560,39 +1595,8 @@
       titleRow.appendChild(type);
       titleRow.appendChild(title);
 
-      const headerActions = document.createElement('div');
-      headerActions.className = 'activity__header-actions';
-
-      if (isTrackableActivity(weekIndex, slotIndex, activityIndex)) {
-        const timerButton = document.createElement('button');
-        const isRunning = Boolean(activity.actualStart && !activity.actualEnd);
-        timerButton.type = 'button';
-        if (isRunning) {
-          timerButton.className = 'activity__timer-button activity__timer-button--running btn btn-primary';
-          timerButton.textContent = 'Arrêter';
-          timerButton.setAttribute('aria-label', 'Arrêter le chronomètre');
-        } else {
-          timerButton.className = 'activity__timer-button activity__timer-button--start icon-button icon-button--compact';
-          timerButton.innerHTML = timerStartIconMarkup;
-          timerButton.setAttribute('aria-label', 'Démarrer le chronomètre');
-        }
-        timerButton.addEventListener('click', (event) => {
-          event.stopPropagation();
-          const nowIso = new Date().toISOString();
-          const payload = isRunning ? { actualEnd: nowIso } : { actualStart: nowIso, actualEnd: null };
-          updateActivityTiming(activity.id, payload).then((result) => {
-            if (!result) return;
-            activity.actualStart = result.actualStart;
-            activity.actualEnd = result.actualEnd;
-            renderSchedule();
-          });
-        });
-
-        headerActions.appendChild(timerButton);
-      }
-
+      header.appendChild(metaColumn);
       header.appendChild(titleRow);
-      header.appendChild(headerActions);
 
       activityEl.appendChild(header);
 
@@ -1600,15 +1604,9 @@
       const detailsRow = document.createElement('div');
       detailsRow.className = 'activity__details-row';
 
-      const timingRow = document.createElement('div');
-      timingRow.className = 'activity__timing';
-      timingRow.appendChild(duration);
-      timingRow.appendChild(realTimeButton);
-
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
-      detailsRow.appendChild(timingRow);
       detailsRow.appendChild(details);
 
       const materialItems = activity.materials
@@ -1626,18 +1624,37 @@
       materialsLabel.className = 'sr-only';
       materialsLabel.textContent = 'Matériel :';
 
-      const materialsText = document.createElement('span');
-      materialsText.className = 'activity__materials-text';
+      const materialsList = document.createElement('div');
+      materialsList.className = 'activity__materials-list';
 
       if (materialItems.length > 0) {
-        materialsText.textContent = materialItems.join(', ');
+        materialItems.forEach((item) => {
+          const materialRow = document.createElement('div');
+          materialRow.className = 'activity__materials-item';
+
+          const materialsIcon = document.createElement('span');
+          materialsIcon.className = 'activity__materials-icon';
+          materialsIcon.setAttribute('aria-hidden', 'true');
+          materialsIcon.innerHTML =
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7.5L19 7.5V21H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 3v5H19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 13H15m-5.5 4H15m-5.5-8h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+          const materialsText = document.createElement('span');
+          materialsText.className = 'activity__materials-text';
+          materialsText.textContent = item;
+
+          materialRow.appendChild(materialsIcon);
+          materialRow.appendChild(materialsText);
+          materialsList.appendChild(materialRow);
+        });
       } else {
-        materialsText.classList.add('empty');
-        materialsText.textContent = 'Aucune ressource';
+        const emptyMaterials = document.createElement('span');
+        emptyMaterials.className = 'empty';
+        emptyMaterials.textContent = 'Aucune ressource';
+        materialsList.appendChild(emptyMaterials);
       }
 
       materials.appendChild(materialsLabel);
-      materials.appendChild(materialsText);
+      materials.appendChild(materialsList);
       detailsRow.appendChild(materials);
 
       activityEl.appendChild(detailsRow);
