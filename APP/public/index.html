@@ -1511,10 +1511,6 @@
 
       const plannedCell = document.createElement('div');
       plannedCell.className = 'activity__cell activity__cell--planned';
-      const plannedLabel = document.createElement('p');
-      plannedLabel.className = 'activity__label';
-      plannedLabel.textContent = 'Temps prévu';
-
       const duration = document.createElement('div');
       duration.className = 'activity__duration';
       duration.setAttribute('aria-label', `${activity.duration} minutes`);
@@ -1531,14 +1527,10 @@
       duration.appendChild(durationIcon);
       duration.appendChild(durationText);
 
-      plannedCell.appendChild(plannedLabel);
       plannedCell.appendChild(duration);
 
       const typeCell = document.createElement('div');
       typeCell.className = 'activity__cell activity__cell--type';
-      const typeLabelWrapper = document.createElement('p');
-      typeLabelWrapper.className = 'activity__label';
-      typeLabelWrapper.textContent = "Type d'activité";
 
       const type = document.createElement('div');
       type.className = 'activity__type';
@@ -1555,14 +1547,10 @@
       type.appendChild(typeIcon);
       type.appendChild(typeText);
 
-      typeCell.appendChild(typeLabelWrapper);
       typeCell.appendChild(type);
 
       const titleCell = document.createElement('div');
       titleCell.className = 'activity__cell activity__cell--title';
-      const titleLabel = document.createElement('p');
-      titleLabel.className = 'activity__label';
-      titleLabel.textContent = 'Titre';
 
       const title = document.createElement('button');
       title.type = 'button';
@@ -1576,14 +1564,10 @@
         openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
       });
 
-      titleCell.appendChild(titleLabel);
       titleCell.appendChild(title);
 
       const realTimeCell = document.createElement('div');
       realTimeCell.className = 'activity__cell activity__cell--realtime';
-      const realTimeLabelEl = document.createElement('p');
-      realTimeLabelEl.className = 'activity__label';
-      realTimeLabelEl.textContent = 'Temps réel';
 
       const realTimeActions = document.createElement('div');
       realTimeActions.className = 'activity__realtime-actions';
@@ -1632,21 +1616,16 @@
         realTimeActions.appendChild(timerButton);
       }
 
-      realTimeCell.appendChild(realTimeLabelEl);
       realTimeCell.appendChild(realTimeActions);
 
       const detailsCell = document.createElement('div');
       detailsCell.className = 'activity__cell activity__cell--details';
-      const detailsLabel = document.createElement('p');
-      detailsLabel.className = 'activity__label';
-      detailsLabel.textContent = 'Description';
 
       const detailsText = activity.details || 'Description à compléter';
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
 
-      detailsCell.appendChild(detailsLabel);
       detailsCell.appendChild(details);
 
       const materialItems = activity.materials
@@ -1658,9 +1637,6 @@
 
       const materialsCell = document.createElement('div');
       materialsCell.className = 'activity__cell activity__cell--materials';
-      const materialsLabel = document.createElement('p');
-      materialsLabel.className = 'activity__label';
-      materialsLabel.textContent = 'Ressources';
 
       const materials = document.createElement('div');
       materials.className = 'activity__materials';
@@ -1696,7 +1672,6 @@
       }
 
       materials.appendChild(materialsList);
-      materialsCell.appendChild(materialsLabel);
       materialsCell.appendChild(materials);
 
       grid.appendChild(plannedCell);

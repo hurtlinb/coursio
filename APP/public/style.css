@@ -847,7 +847,7 @@ h1 {
 .activity__cell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -856,14 +856,6 @@ h1 {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.activity__label {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
 }
 
 .activity__duration {
