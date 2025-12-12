@@ -892,6 +892,24 @@ h1 {
   padding: 8px 10px;
 }
 
+.activity__timer-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity__timer-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.activity__timer-icon-label {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
 .activity__duration-icon {
   display: inline-flex;
   width: 16px;

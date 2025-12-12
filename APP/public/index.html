@@ -393,6 +393,17 @@
       evaluation: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m9 12.5 2 2.5 4-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`
     };
 
+    const timerStartIconMarkup = `
+      <span class="activity__timer-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M10 8.5 16 12l-6 3.5Z" fill="currentColor" />
+        </svg>
+        <span class="activity__timer-icon-label">Start</span>
+      </span>
+      <span class="sr-only">Démarrer</span>
+    `;
+
     const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
       weekday: 'long',
       day: 'numeric',
@@ -1529,7 +1540,13 @@
         const isRunning = Boolean(activity.actualStart && !activity.actualEnd);
         timerButton.type = 'button';
         timerButton.className = 'activity__timer-button btn btn-primary';
-        timerButton.textContent = isRunning ? 'Arrêter' : 'Démarrer';
+        if (isRunning) {
+          timerButton.textContent = 'Arrêter';
+          timerButton.setAttribute('aria-label', 'Arrêter le chronomètre');
+        } else {
+          timerButton.innerHTML = timerStartIconMarkup;
+          timerButton.setAttribute('aria-label', 'Démarrer le chronomètre');
+        }
         timerButton.addEventListener('click', (event) => {
           event.stopPropagation();
           const nowIso = new Date().toISOString();
