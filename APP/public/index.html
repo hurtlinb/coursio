@@ -1542,7 +1542,7 @@
       );
     }
 
-    function createActivityElement(activity, weekIndex, slotIndex, activityIndex) {
+    function createActivityElement(activity, weekIndex, slotIndex, activityIndex, slot) {
       const activityEl = document.createElement('div');
       activityEl.className = 'activity';
       activityEl.draggable = true;
@@ -1550,9 +1550,36 @@
       activityEl.dataset.slot = slotIndex;
       activityEl.dataset.index = activityIndex;
       activityEl.dataset.id = activity.id;
+      activityEl.dataset.slotLabel = slot?.label || '';
 
       const grid = document.createElement('div');
       grid.className = 'activity__grid';
+
+      const titleCell = document.createElement('div');
+      titleCell.className = 'activity__cell activity__cell--title';
+
+      const title = document.createElement('button');
+      title.type = 'button';
+      title.className = 'activity__title activity__title-button';
+      title.textContent = activity.name;
+      title.title = `Modifier l'activité ${activity.name}`;
+      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
+      title.addEventListener('click', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
+      });
+
+      titleCell.appendChild(title);
+
+      const slotCell = document.createElement('div');
+      slotCell.className = 'activity__cell activity__cell--slot';
+
+      const slotLabel = document.createElement('div');
+      slotLabel.className = 'activity__slot-label';
+      slotLabel.textContent = slot?.label || '';
+
+      slotCell.appendChild(slotLabel);
 
       const plannedCell = document.createElement('div');
       plannedCell.className = 'activity__cell activity__cell--planned';
@@ -1587,24 +1614,16 @@
       typeIcon.setAttribute('aria-hidden', 'true');
 
       const typeLabel = document.createElement('span');
-      typeLabel.className = 'sr-only';
+      typeLabel.className = 'activity__format-label';
       typeLabel.textContent = supportedFormats[activity.type] || activity.type;
 
-      const title = document.createElement('button');
-      title.type = 'button';
-      title.className = 'activity__title activity__title-button';
-      title.textContent = activity.name;
-      title.title = `Modifier l'activité ${activity.name}`;
-      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
-      title.addEventListener('click', (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
-      });
+      const typeName = document.createElement('span');
+      typeName.className = 'sr-only';
+      typeName.textContent = supportedFormats[activity.type] || activity.type;
 
       type.appendChild(typeIcon);
-      type.appendChild(title);
       type.appendChild(typeLabel);
+      type.appendChild(typeName);
 
       typeCell.appendChild(type);
 
@@ -1716,6 +1735,8 @@
       materials.appendChild(materialsList);
       materialsCell.appendChild(materials);
 
+      grid.appendChild(titleCell);
+      grid.appendChild(slotCell);
       grid.appendChild(plannedCell);
       grid.appendChild(typeCell);
       grid.appendChild(realTimeCell);
@@ -1758,7 +1779,7 @@
         slotContent.appendChild(empty);
       } else {
         slot.activities.forEach((activity, activityIndex) => {
-          slotContent.appendChild(createActivityElement(activity, weekIndex, slotIndex, activityIndex));
+          slotContent.appendChild(createActivityElement(activity, weekIndex, slotIndex, activityIndex, slot));
         });
       }
 

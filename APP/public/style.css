@@ -864,13 +864,22 @@ h1 {
 
 .activity__grid {
   display: grid;
-  grid-template-columns: var(--activity-duration-width) 1fr 1fr;
+  grid-template-columns: var(--activity-duration-width) 1.2fr 1fr 1fr;
   grid-template-areas:
-    'planned type type'
-    'realtime details materials';
+    'title title title realtime'
+    'slot planned type materials'
+    'details details details materials';
   column-gap: 16px;
-  row-gap: 12px;
+  row-gap: 10px;
   align-items: start;
+}
+
+.activity__cell--title {
+  grid-area: title;
+}
+
+.activity__cell--slot {
+  grid-area: slot;
 }
 
 .activity__cell--type {
@@ -918,6 +927,12 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
+}
+
+.activity__slot-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .activity__realtime {
@@ -997,12 +1012,17 @@ h1 {
 .activity__type {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 0;
   background: none;
   border-radius: 0;
   color: var(--text);
   width: fit-content;
+}
+
+.activity__format-label {
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .activity__type .activity__title-button {
@@ -1197,8 +1217,8 @@ h1 {
 
 @media print {
   @page {
-    size: A4;
-    margin: 10mm;
+    size: A4 portrait;
+    margin: 8mm;
   }
 
   :root {
@@ -1211,13 +1231,13 @@ h1 {
   body {
     background: #fff;
     color: #0f172a;
-    font-size: 12px;
-    line-height: 1.4;
+    font-size: 10.5px;
+    line-height: 1.3;
   }
 
   .sections {
     padding: 0;
-    gap: 12px;
+    gap: 6px;
   }
 
   .section,
@@ -1243,7 +1263,7 @@ h1 {
   }
 
   .planner {
-    gap: 12px;
+    gap: 6px;
   }
 
   .course-toolbar,
@@ -1252,64 +1272,138 @@ h1 {
   }
 
   .timeline__grid {
-    gap: 8px;
+    gap: 6px;
   }
 
   .week-card {
     padding: 0;
-    gap: 6px;
+    gap: 4px;
+    break-inside: avoid;
   }
 
   .slots {
-    gap: 6px;
+    gap: 4px;
   }
 
   .slot {
     padding: 0;
-    gap: 4px;
+    gap: 2px;
   }
 
   .slot__label {
-    font-size: 13px;
-    color: inherit;
+    display: none;
   }
 
   .slot__content {
-    gap: 4px;
+    gap: 2px;
     min-height: 0;
   }
 
   .activity {
-    padding: 0 0 4px 0;
-    gap: 2px;
+    padding: 0;
+    gap: 0;
     cursor: default;
+    border-radius: 0;
+    border-bottom: 0.35px solid #cbd5e1;
   }
 
   .activity__grid {
     display: grid;
-    grid-template-columns: 78px 150px 1fr 1fr;
-    grid-template-areas:
-      'planned type details materials'
-      'realtime type details materials';
-    column-gap: 8px;
-    row-gap: 2px;
+    grid-template-columns: 1.6fr 0.9fr 0.55fr 0.65fr 0.8fr 1.5fr 1.2fr;
+    grid-template-areas: 'title slot planned realtime type details materials';
+    column-gap: 6px;
+    row-gap: 0;
     align-items: start;
+    padding: 2px 0;
   }
 
   .activity__cell {
-    gap: 2px;
+    gap: 1px;
   }
 
   .activity__cell--details {
     padding-left: 0;
   }
 
-  .activity__materials {
+  .activity__cell--title {
+    grid-area: title;
+  }
+
+  .activity__cell--slot {
+    grid-area: slot;
+  }
+
+  .activity__cell--planned {
+    grid-area: planned;
+  }
+
+  .activity__cell--type {
+    grid-area: type;
+  }
+
+  .activity__cell--realtime {
+    grid-area: realtime;
+  }
+
+  .activity__cell--materials {
+    grid-area: materials;
+  }
+
+  .activity__title-button {
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .activity__slot-label,
+  .activity__duration,
+  .activity__format-label,
+  .activity__realtime,
+  .activity__details,
+  .activity__materials-text {
+    font-size: 10px;
+    color: #0f172a;
+  }
+
+  .activity__duration-icon,
+  .format-icon,
+  .activity__materials-icon {
+    display: none;
+  }
+
+  .activity__realtime-actions {
     gap: 2px;
   }
 
+  .activity__timer-button {
+    display: none;
+  }
+
+  .activity__duration {
+    font-weight: 600;
+  }
+
+  .activity__realtime {
+    padding: 0;
+    cursor: default;
+  }
+
+  .activity__realtime:hover,
+  .activity__realtime:focus-visible {
+    outline: none;
+    text-decoration: none;
+  }
+
+  .activity__materials {
+    gap: 1px;
+  }
+
   .activity__materials-list {
-    gap: 2px;
+    gap: 1px;
+  }
+
+  .empty {
+    font-size: 10px;
+    color: #475569;
   }
 
   .auth-overlay,
@@ -1327,6 +1421,8 @@ h1 {
   .activity__grid {
     grid-template-columns: 1fr;
     grid-template-areas:
+      'title'
+      'slot'
       'planned'
       'type'
       'realtime'
