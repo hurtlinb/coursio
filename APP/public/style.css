@@ -971,7 +971,6 @@ h1 {
   gap: 8px;
   padding: 8px 10px;
   background: rgba(34, 211, 238, 0.12);
-  border: 1px solid rgba(34, 211, 238, 0.5);
   border-radius: 10px;
   color: var(--text);
   width: fit-content;
