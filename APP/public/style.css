@@ -923,7 +923,7 @@ h1 {
 
 .activity__timer-button--running {
   justify-content: center;
-  padding: 8px 10px;
+  padding: 0;
 }
 
 .activity__timer-icon {
