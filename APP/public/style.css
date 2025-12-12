@@ -246,6 +246,13 @@ h1 {
   transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
 
+.icon-button--compact {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
 .icon-button:hover,
 .icon-button:focus-visible {
   transform: translateY(-1px);
@@ -886,6 +893,16 @@ h1 {
 }
 
 .activity__timer-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activity__timer-button--start {
+  align-self: flex-start;
+}
+
+.activity__timer-button--running {
   width: 100%;
   justify-content: center;
   padding: 8px 10px;
@@ -894,19 +911,12 @@ h1 {
 .activity__timer-icon {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
 }
 
 .activity__timer-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.activity__timer-icon-label {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-size: 12px;
+  width: 18px;
+  height: 18px;
 }
 
 .activity__duration-icon {
