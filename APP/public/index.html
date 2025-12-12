@@ -196,6 +196,7 @@
         <div class="course-form__actions activity-form__actions">
           <div class="activity-form__buttons">
             <button class="btn btn-primary" id="activity-submit" type="submit">Ajouter l'activité</button>
+            <button class="btn btn-secondary is-hidden" id="duplicate-activity" type="button">Dupliquer</button>
             <button class="btn btn-danger is-hidden" id="delete-activity" type="button">Supprimer</button>
           </div>
           <p class="muted" id="activity-status" aria-live="polite"></p>
@@ -464,6 +465,7 @@
     const activityStatus = document.getElementById('activity-status');
     const activityModalTitle = document.getElementById('activity-modal-title');
     const activitySubmitButton = document.getElementById('activity-submit');
+    const duplicateActivityButton = document.getElementById('duplicate-activity');
     const activityDeleteButton = document.getElementById('delete-activity');
     const formatSelector = document.getElementById('format-selector');
     const formatInput = document.getElementById('type-select');
@@ -743,6 +745,7 @@
       if (mode === 'edit') {
         activitySubmitButton.textContent = "Modifier l'activité";
         activityModalTitle.textContent = 'Modifier une activité';
+        duplicateActivityButton.classList.remove('is-hidden');
         activityDeleteButton.classList.remove('is-hidden');
         return;
       }
@@ -750,6 +753,7 @@
       editingActivity = null;
       activitySubmitButton.textContent = "Ajouter l'activité";
       activityModalTitle.textContent = 'Nouvelle activité';
+      duplicateActivityButton.classList.add('is-hidden');
       activityDeleteButton.classList.add('is-hidden');
     }
 
@@ -1269,6 +1273,28 @@
       return tentativeSlot;
     }
 
+    function findNextHalfDaySlot(currentWeekIndex, currentSlotIndex) {
+      const totalWeeks = schedule?.length || 0;
+      const slotsPerWeek = schedule?.[0]?.slots?.length || 0;
+
+      if (totalWeeks === 0 || slotsPerWeek === 0) return null;
+
+      const startLinearIndex = currentWeekIndex * slotsPerWeek + currentSlotIndex + 1;
+      const totalSlots = totalWeeks * slotsPerWeek;
+
+      for (let linearIndex = startLinearIndex; linearIndex < totalSlots; linearIndex += 1) {
+        const targetWeekIndex = Math.floor(linearIndex / slotsPerWeek);
+        const targetSlotIndex = linearIndex % slotsPerWeek;
+
+        const targetSlot = schedule[targetWeekIndex]?.slots?.[targetSlotIndex];
+        if (targetSlot && !targetSlot.isHoliday) {
+          return { weekIndex: targetWeekIndex, slotIndex: targetSlotIndex };
+        }
+      }
+
+      return null;
+    }
+
     async function rescheduleWeekDates(weekIndex, normalizedDate) {
       if (!currentCourseId) {
         courseStatus.textContent = 'Sélectionnez ou créez un cours avant de modifier les dates.';
@@ -1706,6 +1732,55 @@
             closeCourseEditor();
           }
         }
+      });
+
+      duplicateActivityButton.addEventListener('click', () => {
+        if (!editingActivity || !currentCourseId) return;
+
+        const name = document.getElementById('activity-name').value.trim();
+        const type = document.getElementById('type-select').value;
+        const duration = Number(document.getElementById('duration').value) || 0;
+        const details = document.getElementById('details').value.trim();
+        const materials = document.getElementById('materials').value.trim();
+
+        if (!name || duration <= 0) {
+          activityStatus.textContent = 'Renseignez un nom et une durée valides pour dupliquer cette activité.';
+          return;
+        }
+
+        const targetSlot = findNextHalfDaySlot(editingActivity.weekIndex, editingActivity.slotIndex);
+        if (!targetSlot) {
+          activityStatus.textContent = 'Aucune demi-journée suivante disponible pour dupliquer cette activité.';
+          return;
+        }
+
+        activityStatus.textContent = "Duplication de l’activité en cours...";
+
+        const activityPayload = {
+          name,
+          week: targetSlot.weekIndex + 1,
+          slot: targetSlot.slotIndex,
+          format: type,
+          details,
+          duration,
+          materials,
+          courseId: currentCourseId
+        };
+
+        const targetSlotRef = schedule?.[targetSlot.weekIndex]?.slots?.[targetSlot.slotIndex];
+        if (!targetSlotRef) {
+          activityStatus.textContent = 'La demi-journée cible est introuvable dans le planning.';
+          return;
+        }
+
+        persistActivity(activityPayload).then((activityId) => {
+          if (activityId) {
+            const duplicatedActivity = { id: activityId, name, type, details, duration, materials };
+            targetSlotRef.activities.push(duplicatedActivity);
+            renderSchedule();
+            activityStatus.textContent = 'Activité dupliquée dans la demi-journée suivante.';
+          }
+        });
       });
 
       activityDeleteButton.addEventListener('click', () => {
