@@ -65,20 +65,21 @@
         </div>
       </div>
 
-      <div class="course-toolbar" aria-label="Sélection des cours">
+      <div class="course-selector" aria-label="Sélection des cours">
+        <label class="form-field form-field--inline">
+          <span>Cours disponibles</span>
+          <select id="course-select"></select>
+        </label>
+        <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
+          <span aria-hidden="true">+</span>
+          <span class="sr-only">Créer un nouveau cours</span>
+        </button>
+      </div>
+
+      <div class="course-toolbar" aria-label="Informations du cours">
         <div class="course-toolbar__intro">
           <button class="label course-title" id="course-title" type="button">Sélectionnez un module</button>
           <div class="muted course-details" id="course-details">Connectez-vous pour afficher les informations de votre cours.</div>
-        </div>
-        <div class="course-toolbar__actions">
-          <label class="form-field form-field--inline">
-            <span>Cours disponibles</span>
-            <select id="course-select"></select>
-          </label>
-          <button class="icon-button" id="open-course-modal" type="button" aria-haspopup="dialog">
-            <span aria-hidden="true">+</span>
-            <span class="sr-only">Créer un nouveau cours</span>
-          </button>
         </div>
       </div>
 
