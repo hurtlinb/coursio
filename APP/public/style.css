@@ -839,13 +839,16 @@ h1 {
 .activity__grid {
   display: grid;
   grid-template-columns: var(--activity-duration-width) 1fr 1fr;
+  grid-template-areas:
+    'planned type type'
+    'realtime details materials';
   column-gap: 16px;
   row-gap: 12px;
   align-items: start;
 }
 
 .activity__cell--type {
-  grid-column: span 2;
+  grid-area: type;
 }
 
 .activity__cell {
@@ -853,6 +856,23 @@ h1 {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+}
+
+.activity__cell--planned {
+  grid-area: planned;
+}
+
+.activity__cell--realtime {
+  grid-area: realtime;
+}
+
+.activity__cell--details {
+  grid-area: details;
+  padding-left: var(--activity-title-indent);
+}
+
+.activity__cell--materials {
+  grid-area: materials;
 }
 
 .activity__cell--realtime .activity__realtime-actions {
@@ -1150,6 +1170,12 @@ h1 {
 @media (max-width: 720px) {
   .activity__grid {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'planned'
+      'type'
+      'realtime'
+      'details'
+      'materials';
   }
 
   .activity__cell--type {
