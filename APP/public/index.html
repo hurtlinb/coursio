@@ -1232,10 +1232,34 @@
       }
 
       if (activity.actualStart && !activity.actualEnd) {
-        return `Réel : ${startLabel} - en cours`;
+        return `${startLabel} - en cours`;
       }
 
-      return `Réel : ${startLabel} - ${endLabel}`;
+      return `${startLabel} - ${endLabel}`;
+    }
+
+    function openManualTimePrompt(activity) {
+      const currentValue = `${formatTimeLabel(activity.actualStart)}${
+        activity.actualEnd ? ` - ${formatTimeLabel(activity.actualEnd)}` : ''
+      }`.replace(/^--:--\s?-?\s?/, '');
+      const userInput = window.prompt('Heures réelles (HH:MM-HH:MM). Laissez vide pour effacer.', currentValue.trim());
+      if (userInput === null) return;
+
+      try {
+        const parsed = parseManualTimeInput(userInput, activity);
+        const payload = {};
+        if (parsed.actualStart !== undefined) payload.actualStart = parsed.actualStart;
+        if (parsed.actualEnd !== undefined) payload.actualEnd = parsed.actualEnd;
+
+        updateActivityTiming(activity.id, payload).then((result) => {
+          if (!result) return;
+          activity.actualStart = result.actualStart;
+          activity.actualEnd = result.actualEnd;
+          renderSchedule();
+        });
+      } catch (error) {
+        activityStatus.textContent = `⚠️ ${error.message}`;
+      }
     }
 
     function buildIsoFromTime(activity, timeString) {
@@ -1563,9 +1587,44 @@
       const detailsRow = document.createElement('div');
       detailsRow.className = 'activity__details-row';
 
+      const timing = document.createElement('div');
+      timing.className = 'activity__timing';
+      timing.setAttribute('aria-label', 'Heures réelles');
+
+      const timingInfo = document.createElement('div');
+      timingInfo.className = 'activity__timing-info';
+
+      const timingIcon = document.createElement('span');
+      timingIcon.className = 'activity__timing-icon';
+      timingIcon.setAttribute('aria-hidden', 'true');
+      timingIcon.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+      const timingText = document.createElement('span');
+      timingText.className = 'activity__timing-text';
+      timingText.textContent = getRealTimeLabel(activity);
+
+      timingInfo.appendChild(timingIcon);
+      timingInfo.appendChild(timingText);
+
+      const timingEditButton = document.createElement('button');
+      timingEditButton.type = 'button';
+      timingEditButton.className = 'icon-button icon-button--ghost activity__timing-edit';
+      timingEditButton.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 16.5 3 2.5 10-10-3-2.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 16.5V20h3l11-11-3-3L5 16.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+      timingEditButton.setAttribute('aria-label', 'Modifier les heures réelles');
+      timingEditButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openManualTimePrompt(activity);
+      });
+
+      timing.appendChild(timingInfo);
+      timing.appendChild(timingEditButton);
+
       const details = document.createElement('p');
       details.className = 'activity__details';
       details.textContent = detailsText;
+      detailsRow.appendChild(timing);
       detailsRow.appendChild(details);
 
       const materialItems = activity.materials
