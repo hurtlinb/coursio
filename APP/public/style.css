@@ -833,7 +833,7 @@ h1 {
 .activity__header {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .activity__title-row {
@@ -845,18 +845,19 @@ h1 {
 }
 
 .activity {
-  --activity-duration-width: 96px;
+  --activity-duration-width: 120px;
   --activity-duration-gap: 8px;
   --activity-title-indent: 32px;
 }
 
-.activity__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: var(--activity-duration-width);
+.activity__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
   flex-shrink: 0;
 }
+
 
 .activity__duration {
   display: inline-flex;
@@ -878,6 +879,7 @@ h1 {
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .activity__realtime--empty {
@@ -960,63 +962,38 @@ h1 {
 
 .activity__details-row {
   display: grid;
-  grid-template-columns: var(--activity-duration-width) minmax(0, 1fr);
-  align-items: flex-start;
+  grid-template-columns: var(--activity-duration-width) minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
   column-gap: 16px;
-  row-gap: 8px;
+  row-gap: 4px;
   color: var(--muted);
+}
+
+.activity__timing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--activity-duration-gap);
+  min-width: 0;
 }
 
 .activity__details {
   color: inherit;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.activity__details,
 .activity__materials {
-  grid-column: 2;
-}
-
-.activity__materials {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: inherit;
-  justify-self: start;
-  align-items: flex-start;
-}
-
-.activity__materials-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-  width: 100%;
-}
-
-.activity__materials-item {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 8px;
-  width: 100%;
-}
-
-.activity__materials-icon {
-  width: 16px;
-  height: 16px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.activity__materials-icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+  gap: 8px;
+  color: inherit;
+  justify-self: start;
+  min-width: 0;
 }
 
 .activity__materials-text {
-  flex: 1;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
