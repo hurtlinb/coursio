@@ -959,32 +959,65 @@ h1 {
 
 
 .activity__details-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: var(--activity-duration-width) minmax(0, 1fr);
+  align-items: flex-start;
+  column-gap: 16px;
+  row-gap: 8px;
   color: var(--muted);
-  min-width: 0;
-}
-
-.activity__details-row > * {
-  min-width: 0;
 }
 
 .activity__details {
   color: inherit;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.activity__details-chip {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.activity__details,
+.activity__materials {
+  grid-column: 2;
 }
 
-.activity__materials-summary {
+.activity__materials {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: inherit;
+  justify-self: start;
+  align-items: flex-start;
+}
+
+.activity__materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.activity__materials-item {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.activity__materials-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activity__materials-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.activity__materials-text {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1126,7 +1159,11 @@ h1 {
 
 @media (max-width: 720px) {
   .activity__details-row {
-    gap: 8px;
+    grid-template-columns: 1fr;
+  }
+
+  .activity__materials {
+    width: 100%;
   }
 }
 
