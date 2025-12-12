@@ -444,6 +444,8 @@ async function ensureSchema() {
       duration_minutes SMALLINT UNSIGNED NOT NULL,
       format ENUM('presentation', 'exercice', 'travail_de_groupe', 'jeu', 'recherche_information', 'synthese', 'evaluation') NOT NULL,
       materials TEXT NULL,
+      actual_start_time DATETIME NULL,
+      actual_end_time DATETIME NULL,
       position SMALLINT UNSIGNED NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_activities_half_day FOREIGN KEY (half_day_id) REFERENCES half_days(id) ON DELETE CASCADE,
@@ -498,6 +500,16 @@ async function ensureSchema() {
     }
 
     await pool.query('ALTER TABLE half_days ADD UNIQUE INDEX uq_half_days (course_id, week_number, slot_index)');
+  }
+
+  const [actualStartColumn] = await pool.query("SHOW COLUMNS FROM activities LIKE 'actual_start_time'");
+  if (actualStartColumn.length === 0) {
+    await pool.query("ALTER TABLE activities ADD COLUMN actual_start_time DATETIME NULL AFTER materials");
+  }
+
+  const [actualEndColumn] = await pool.query("SHOW COLUMNS FROM activities LIKE 'actual_end_time'");
+  if (actualEndColumn.length === 0) {
+    await pool.query("ALTER TABLE activities ADD COLUMN actual_end_time DATETIME NULL AFTER actual_start_time");
   }
 }
 
@@ -751,8 +763,12 @@ app.get('/api/courses/:courseId/activities', requireAuth, async (req, res) => {
               a.duration_minutes AS duration,
               a.format,
               a.materials,
+              a.actual_start_time AS actualStartTime,
+              a.actual_end_time AS actualEndTime,
               h.week_number AS weekNumber,
-              h.slot_index AS slotIndex
+              h.slot_index AS slotIndex,
+              h.session_date AS sessionDate,
+              h.period
        FROM activities a
        INNER JOIN half_days h ON a.half_day_id = h.id
        INNER JOIN courses c ON h.course_id = c.id
@@ -769,7 +785,11 @@ app.get('/api/courses/:courseId/activities', requireAuth, async (req, res) => {
       type: row.format,
       details: row.description,
       duration: row.duration,
-      materials: row.materials || ''
+      materials: row.materials || '',
+      sessionDate: row.sessionDate,
+      period: row.period,
+      actualStart: row.actualStartTime ? new Date(row.actualStartTime).toISOString() : null,
+      actualEnd: row.actualEndTime ? new Date(row.actualEndTime).toISOString() : null
     })).filter((activity) => Number.isInteger(activity.week) && Number.isInteger(activity.slot));
 
     res.json(activities);
@@ -1175,6 +1195,86 @@ app.patch('/api/activities/:activityId/move', requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Erreur lors du déplacement de l'activité :", error.message);
     res.status(500).json({ error: "Impossible de mettre à jour l'activité." });
+  }
+});
+
+app.patch('/api/activities/:activityId/timing', requireAuth, async (req, res) => {
+  try {
+    const activityId = Number(req.params.activityId);
+    const { actualStart, actualEnd } = req.body || {};
+
+    if (!Number.isInteger(activityId) || activityId <= 0) {
+      return res.status(400).json({ error: "Identifiant d'activité invalide." });
+    }
+
+    const [activities] = await pool.query(
+      `SELECT a.id, a.half_day_id AS halfDayId, h.course_id AS courseId
+       FROM activities a
+       INNER JOIN half_days h ON a.half_day_id = h.id
+       INNER JOIN courses c ON h.course_id = c.id
+       WHERE a.id = ? AND c.teacher_id = ?
+       LIMIT 1`,
+      [activityId, req.user.id]
+    );
+
+    if (activities.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable.' });
+    }
+
+    const updates = [];
+    const params = [];
+
+    if (actualStart !== undefined) {
+      const parsedStart = actualStart ? new Date(actualStart) : null;
+      if (parsedStart && Number.isNaN(parsedStart.getTime())) {
+        return res.status(400).json({ error: "Horodatage de début invalide." });
+      }
+      updates.push('actual_start_time = ?');
+      params.push(parsedStart ? parsedStart : null);
+    }
+
+    if (actualEnd !== undefined) {
+      const parsedEnd = actualEnd ? new Date(actualEnd) : null;
+      if (parsedEnd && Number.isNaN(parsedEnd.getTime())) {
+        return res.status(400).json({ error: "Horodatage de fin invalide." });
+      }
+      updates.push('actual_end_time = ?');
+      params.push(parsedEnd ? parsedEnd : null);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Aucune donnée horaire fournie.' });
+    }
+
+    if (actualStart && actualEnd) {
+      const startDate = new Date(actualStart);
+      const endDate = new Date(actualEnd);
+      if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate < startDate) {
+        return res.status(400).json({ error: 'L’heure de fin doit être postérieure à l’heure de début.' });
+      }
+    }
+
+    params.push(activityId);
+    const updateQuery = `UPDATE activities SET ${updates.join(', ')} WHERE id = ?`;
+    await pool.query(updateQuery, params);
+
+    const [updatedRows] = await pool.query(
+      `SELECT actual_start_time AS actualStartTime, actual_end_time AS actualEndTime
+       FROM activities
+       WHERE id = ?
+       LIMIT 1`,
+      [activityId]
+    );
+
+    const updatedActivity = updatedRows[0] || {};
+
+    res.json({
+      actualStart: updatedActivity.actualStartTime ? new Date(updatedActivity.actualStartTime).toISOString() : null,
+      actualEnd: updatedActivity.actualEndTime ? new Date(updatedActivity.actualEndTime).toISOString() : null
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des heures réelles :', error.message);
+    res.status(500).json({ error: 'Impossible de mettre à jour les heures réelles pour le moment.' });
   }
 });
 
