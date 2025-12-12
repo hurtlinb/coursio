@@ -1390,10 +1390,19 @@
         sessionDate: realTimeContext.sessionDate || realTimeContext.activity.sessionDate
       };
 
-      return {
-        actualStart: startValue ? buildIsoFromTime(activityContext, startValue) : null,
-        actualEnd: endValue ? buildIsoFromTime(activityContext, endValue) : null
-      };
+      const payload = {};
+
+      if (startValue) {
+        const startIso = buildIsoFromTime(activityContext, startValue);
+        if (startIso) payload.actualStart = startIso;
+      }
+
+      if (endValue) {
+        const endIso = buildIsoFromTime(activityContext, endValue);
+        if (endIso) payload.actualEnd = endIso;
+      }
+
+      return payload;
     }
 
     async function persistRealtimeTiming(payload) {
@@ -1441,7 +1450,10 @@
       }
 
       const payload = buildRealtimePayload(normalizedStart, normalizedEnd);
-      if (!payload) return;
+      if (!payload || Object.keys(payload).length === 0) {
+        realtimeStatus.textContent = 'Horaires invalides. Vérifiez les champs saisis.';
+        return;
+      }
 
       await persistRealtimeTiming(payload);
     }
