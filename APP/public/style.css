@@ -900,7 +900,7 @@ h1 {
 
 .activity__details-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: flex-start;
   column-gap: 16px;
   row-gap: 8px;
@@ -928,12 +928,14 @@ h1 {
   flex-direction: column;
   gap: 6px;
   align-items: flex-start;
+  width: 100%;
 }
 
 .activity__materials-item {
   display: inline-flex;
   align-items: flex-start;
   gap: 8px;
+  width: 100%;
 }
 
 .activity__materials-icon {
@@ -942,12 +944,21 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .activity__materials-icon svg {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.activity__materials-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .empty {
