@@ -1197,48 +1197,53 @@
       details.textContent = detailsText;
       detailsRow.appendChild(details);
 
-      if (activity.materials) {
-        const materialItems = activity.materials
-          .split('\n')
-          .map((item) => item.trim())
-          .filter(Boolean);
+      const materialItems = activity.materials
+        ? activity.materials
+            .split('\n')
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [];
 
-        if (materialItems.length > 0) {
-          const materials = document.createElement('div');
-          materials.className = 'activity__materials';
-          materials.setAttribute('aria-label', 'Matériel');
+      const materials = document.createElement('div');
+      materials.className = 'activity__materials';
+      materials.setAttribute('aria-label', 'Matériel');
 
-          const materialsLabel = document.createElement('span');
-          materialsLabel.className = 'sr-only';
-          materialsLabel.textContent = 'Matériel :';
+      const materialsLabel = document.createElement('span');
+      materialsLabel.className = 'sr-only';
+      materialsLabel.textContent = 'Matériel :';
 
-          const materialsList = document.createElement('div');
-          materialsList.className = 'activity__materials-list';
+      const materialsList = document.createElement('div');
+      materialsList.className = 'activity__materials-list';
 
-          materialItems.forEach((item) => {
-            const materialRow = document.createElement('div');
-            materialRow.className = 'activity__materials-item';
+      if (materialItems.length > 0) {
+        materialItems.forEach((item) => {
+          const materialRow = document.createElement('div');
+          materialRow.className = 'activity__materials-item';
 
-            const materialsIcon = document.createElement('span');
-            materialsIcon.className = 'activity__materials-icon';
-            materialsIcon.setAttribute('aria-hidden', 'true');
-            materialsIcon.innerHTML =
-              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7.5L19 7.5V21H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 3v5H19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 13H15m-5.5 4H15m-5.5-8h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+          const materialsIcon = document.createElement('span');
+          materialsIcon.className = 'activity__materials-icon';
+          materialsIcon.setAttribute('aria-hidden', 'true');
+          materialsIcon.innerHTML =
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7.5L19 7.5V21H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 3v5H19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 13H15m-5.5 4H15m-5.5-8h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
-            const materialsText = document.createElement('span');
-            materialsText.className = 'activity__materials-text';
-            materialsText.textContent = item;
+          const materialsText = document.createElement('span');
+          materialsText.className = 'activity__materials-text';
+          materialsText.textContent = item;
 
-            materialRow.appendChild(materialsIcon);
-            materialRow.appendChild(materialsText);
-            materialsList.appendChild(materialRow);
-          });
-
-          materials.appendChild(materialsLabel);
-          materials.appendChild(materialsList);
-          detailsRow.appendChild(materials);
-        }
+          materialRow.appendChild(materialsIcon);
+          materialRow.appendChild(materialsText);
+          materialsList.appendChild(materialRow);
+        });
+      } else {
+        const emptyMaterials = document.createElement('span');
+        emptyMaterials.className = 'empty';
+        emptyMaterials.textContent = 'Aucune ressource';
+        materialsList.appendChild(emptyMaterials);
       }
+
+      materials.appendChild(materialsLabel);
+      materials.appendChild(materialsList);
+      detailsRow.appendChild(materials);
 
       activityEl.appendChild(detailsRow);
 
