@@ -111,6 +111,12 @@ function setAuthCookie(res, teacherPayload) {
   });
 }
 
+function roundToNearestFiveMinutes(date) {
+  const fiveMinutesMs = 5 * 60 * 1000;
+  const roundedTimestamp = Math.round(date.getTime() / fiveMinutesMs) * fiveMinutesMs;
+  return new Date(roundedTimestamp);
+}
+
 const dbConfig = loadDbConfig();
 
 const effectiveDbConfig = {
@@ -1229,8 +1235,9 @@ app.patch('/api/activities/:activityId/timing', requireAuth, async (req, res) =>
       if (parsedStart && Number.isNaN(parsedStart.getTime())) {
         return res.status(400).json({ error: "Horodatage de début invalide." });
       }
+      const roundedStart = parsedStart ? roundToNearestFiveMinutes(parsedStart) : null;
       updates.push('actual_start_time = ?');
-      params.push(parsedStart ? parsedStart : null);
+      params.push(roundedStart);
     }
 
     if (actualEnd !== undefined) {
@@ -1238,8 +1245,9 @@ app.patch('/api/activities/:activityId/timing', requireAuth, async (req, res) =>
       if (parsedEnd && Number.isNaN(parsedEnd.getTime())) {
         return res.status(400).json({ error: "Horodatage de fin invalide." });
       }
+      const roundedEnd = parsedEnd ? roundToNearestFiveMinutes(parsedEnd) : null;
       updates.push('actual_end_time = ?');
-      params.push(parsedEnd ? parsedEnd : null);
+      params.push(roundedEnd);
     }
 
     if (updates.length === 0) {
@@ -1247,8 +1255,8 @@ app.patch('/api/activities/:activityId/timing', requireAuth, async (req, res) =>
     }
 
     if (actualStart && actualEnd) {
-      const startDate = new Date(actualStart);
-      const endDate = new Date(actualEnd);
+      const startDate = roundToNearestFiveMinutes(new Date(actualStart));
+      const endDate = roundToNearestFiveMinutes(new Date(actualEnd));
       if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate < startDate) {
         return res.status(400).json({ error: 'L’heure de fin doit être postérieure à l’heure de début.' });
       }
