@@ -1554,16 +1554,9 @@
       typeIcon.innerHTML = getFormatIconMarkup(activity.type);
       typeIcon.setAttribute('aria-hidden', 'true');
 
-      const typeText = document.createElement('span');
-      typeText.textContent = supportedFormats[activity.type] || activity.type;
-
-      type.appendChild(typeIcon);
-      type.appendChild(typeText);
-
-      typeCell.appendChild(type);
-
-      const titleCell = document.createElement('div');
-      titleCell.className = 'activity__cell activity__cell--title';
+      const typeLabel = document.createElement('span');
+      typeLabel.className = 'sr-only';
+      typeLabel.textContent = supportedFormats[activity.type] || activity.type;
 
       const title = document.createElement('button');
       title.type = 'button';
@@ -1577,7 +1570,11 @@
         openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
       });
 
-      titleCell.appendChild(title);
+      type.appendChild(typeIcon);
+      type.appendChild(title);
+      type.appendChild(typeLabel);
+
+      typeCell.appendChild(type);
 
       const realTimeCell = document.createElement('div');
       realTimeCell.className = 'activity__cell activity__cell--realtime';
@@ -1689,7 +1686,6 @@
 
       grid.appendChild(plannedCell);
       grid.appendChild(typeCell);
-      grid.appendChild(titleCell);
       grid.appendChild(realTimeCell);
       grid.appendChild(detailsCell);
       grid.appendChild(materialsCell);

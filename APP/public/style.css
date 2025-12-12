@@ -844,6 +844,10 @@ h1 {
   align-items: start;
 }
 
+.activity__cell--type {
+  grid-column: span 2;
+}
+
 .activity__cell {
   display: flex;
   flex-direction: column;
@@ -951,6 +955,11 @@ h1 {
   border-radius: 10px;
   color: var(--text);
   width: fit-content;
+}
+
+.activity__type .activity__title-button {
+  padding: 0;
+  color: inherit;
 }
 
 .activity__details {
@@ -1141,6 +1150,10 @@ h1 {
 @media (max-width: 720px) {
   .activity__grid {
     grid-template-columns: 1fr;
+  }
+
+  .activity__cell--type {
+    grid-column: auto;
   }
 
   .activity__realtime-actions {
