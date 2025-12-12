@@ -24,6 +24,10 @@ body {
   min-height: 100vh;
 }
 
+.print-view {
+  display: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1221,6 +1225,7 @@ h1 {
     margin: 8mm;
   }
 
+
   :root {
     --text: #0f172a;
     --muted: #475569;
@@ -1235,185 +1240,38 @@ h1 {
     line-height: 1.3;
   }
 
-  .sections {
-    padding: 0;
-    gap: 6px;
+  body > :not(.print-view) {
+    display: none !important;
   }
 
-  .section,
-  .planner,
-  .planner__grid,
-  .course-toolbar,
-  .course-selector,
-  .course-editor,
-  .panel-card,
-  .timeline,
-  .timeline__grid,
-  .week-card,
-  .slots,
-  .slot,
-  .slot__content,
-  .activity,
-  .course-form,
-  .course-form__actions,
-  .activity-form__buttons {
-    background: none !important;
-    box-shadow: none;
-    border: none;
+  .print-view {
+    display: block;
   }
 
-  .planner {
-    gap: 6px;
-  }
-
-  .course-toolbar,
-  .course-selector {
-    padding: 0;
-  }
-
-  .timeline__grid {
-    gap: 6px;
-  }
-
-  .week-card {
-    padding: 0;
-    gap: 4px;
-    break-inside: avoid;
-  }
-
-  .slots {
-    gap: 4px;
-  }
-
-  .slot {
-    padding: 0;
-    gap: 2px;
-  }
-
-  .slot__label {
-    display: none;
-  }
-
-  .slot__content {
-    gap: 2px;
-    min-height: 0;
-  }
-
-  .activity {
-    padding: 0;
-    gap: 0;
-    cursor: default;
-    border-radius: 0;
-    border-bottom: 0.35px solid #cbd5e1;
-  }
-
-  .activity__grid {
-    display: grid;
-    grid-template-columns: 1.6fr 0.9fr 0.55fr 0.65fr 0.8fr 1.5fr 1.2fr;
-    grid-template-areas: 'title slot planned realtime type details materials';
-    column-gap: 6px;
-    row-gap: 0;
-    align-items: start;
-    padding: 2px 0;
-  }
-
-  .activity__cell {
-    gap: 1px;
-  }
-
-  .activity__cell--details {
-    padding-left: 0;
-  }
-
-  .activity__cell--title {
-    grid-area: title;
-  }
-
-  .activity__cell--slot {
-    grid-area: slot;
-  }
-
-  .activity__cell--planned {
-    grid-area: planned;
-  }
-
-  .activity__cell--type {
-    grid-area: type;
-  }
-
-  .activity__cell--realtime {
-    grid-area: realtime;
-  }
-
-  .activity__cell--materials {
-    grid-area: materials;
-  }
-
-  .activity__title-button {
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  .activity__slot-label,
-  .activity__duration,
-  .activity__format-label,
-  .activity__realtime,
-  .activity__details,
-  .activity__materials-text {
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #cbd5e1;
     font-size: 10px;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
     color: #0f172a;
   }
 
-  .activity__duration-icon,
-  .format-icon,
-  .activity__materials-icon {
-    display: none;
+  .print-table th {
+    background: #e2e8f0;
+    font-weight: 700;
   }
 
-  .activity__realtime-actions {
-    gap: 2px;
-  }
-
-  .activity__timer-button {
-    display: none;
-  }
-
-  .activity__duration {
-    font-weight: 600;
-  }
-
-  .activity__realtime {
-    padding: 0;
-    cursor: default;
-  }
-
-  .activity__realtime:hover,
-  .activity__realtime:focus-visible {
-    outline: none;
-    text-decoration: none;
-  }
-
-  .activity__materials {
-    gap: 1px;
-  }
-
-  .activity__materials-list {
-    gap: 1px;
-  }
-
-  .empty {
-    font-size: 10px;
+  .print-table__row--empty td {
+    text-align: center;
     color: #475569;
-  }
-
-  .auth-overlay,
-  .course-modal,
-  .activity-modal,
-  .realtime-modal,
-  .reschedule-modal,
-  .half-day-modal,
-  .print-button {
-    display: none !important;
   }
 }
 
