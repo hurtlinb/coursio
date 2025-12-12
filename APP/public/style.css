@@ -874,6 +874,12 @@ h1 {
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
+.activity__realtime--empty {
+  justify-content: center;
+  color: var(--muted);
+  min-width: 44px;
+}
+
 .activity__realtime:hover,
 .activity__realtime:focus-visible {
   border-color: var(--accent-2);

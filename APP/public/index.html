@@ -336,6 +336,41 @@
       </form>
     </div>
   </div>
+
+  <div class="course-modal is-hidden" id="realtime-modal" role="dialog" aria-modal="true" aria-labelledby="realtime-modal-title" hidden>
+    <div class="course-modal__backdrop" data-close-realtime-modal></div>
+    <div class="course-modal__content">
+      <div class="course-modal__header">
+        <div>
+          <p class="label" id="realtime-modal-title">Heures réelles</p>
+          <p class="muted" id="realtime-modal-subtitle">Renseignez les horaires constatés sur l'activité.</p>
+        </div>
+        <button class="icon-button icon-button--ghost" id="close-realtime-modal" type="button" aria-label="Fermer la saisie des heures réelles">×</button>
+      </div>
+
+      <form class="course-form" id="realtime-form">
+        <div class="form-row">
+          <label class="form-field">
+            <span>Début réel</span>
+            <input type="time" id="realtime-start" step="300">
+          </label>
+          <label class="form-field">
+            <span>Fin réelle</span>
+            <input type="time" id="realtime-end" step="300">
+          </label>
+        </div>
+        <p class="muted" id="realtime-hint">Les horaires sont automatiquement arrondis aux 5 minutes et limités aux heures de cours.</p>
+        <div class="course-form__actions">
+          <div class="activity-form__buttons">
+            <button class="btn btn-primary" type="submit">Enregistrer</button>
+            <button class="btn btn-secondary" type="button" id="realtime-clear">Effacer</button>
+            <button class="btn btn-ghost" type="button" id="realtime-cancel">Annuler</button>
+          </div>
+          <p class="muted" id="realtime-status" aria-live="polite"></p>
+        </div>
+      </form>
+    </div>
+  </div>
   <script>
     const weeks = 5;
     const supportedFormats = {
@@ -370,6 +405,52 @@
       day: 'numeric',
       month: 'long'
     });
+
+    const COURSE_PERIOD_LIMITS = {
+      matin: { minMinutes: 8 * 60, maxMinutes: 11 * 60 + 45 },
+      apres_midi: { minMinutes: 13 * 60, maxMinutes: 16 * 60 + 45 }
+    };
+
+    function getPeriodLimits(period) {
+      if (period === 'apres_midi') return COURSE_PERIOD_LIMITS.apres_midi;
+      if (period === 'matin') return COURSE_PERIOD_LIMITS.matin;
+
+      return {
+        minMinutes: COURSE_PERIOD_LIMITS.matin.minMinutes,
+        maxMinutes: COURSE_PERIOD_LIMITS.apres_midi.maxMinutes
+      };
+    }
+
+    function minutesToTimeString(totalMinutes) {
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    function normalizeTimeString(rawValue, period) {
+      if (!rawValue) return '';
+
+      const [hours, minutes] = rawValue.split(':').map((part) => Number(part));
+      if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return '';
+
+      const roundedMinutes = Math.round((hours * 60 + minutes) / 5) * 5;
+      const limits = getPeriodLimits(period);
+      let clampedMinutes = Math.min(Math.max(roundedMinutes, limits.minMinutes), limits.maxMinutes);
+
+      if (!period && clampedMinutes > COURSE_PERIOD_LIMITS.matin.maxMinutes && clampedMinutes < COURSE_PERIOD_LIMITS.apres_midi.minMinutes) {
+        clampedMinutes = COURSE_PERIOD_LIMITS.apres_midi.minMinutes;
+      }
+
+      return minutesToTimeString(clampedMinutes);
+    }
+
+    function timeStringToMinutes(value) {
+      if (!value) return null;
+      const [hours, minutes] = value.split(':').map((part) => Number(part));
+      if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+
+      return hours * 60 + minutes;
+    }
 
     function formatHalfDayLabel(halfDay) {
       const periodLabel = halfDay.period === 'apres_midi' ? 'Après-midi' : 'Matin';
@@ -529,6 +610,17 @@
     const registerEmailInput = document.getElementById('register-email');
     const registerPasswordInput = document.getElementById('register-password');
     const loginPasswordInput = document.getElementById('login-password');
+    const realtimeModal = document.getElementById('realtime-modal');
+    const realtimeModalBackdrop = document.querySelector('[data-close-realtime-modal]');
+    const closeRealtimeModalBtn = document.getElementById('close-realtime-modal');
+    const realtimeForm = document.getElementById('realtime-form');
+    const realtimeStartInput = document.getElementById('realtime-start');
+    const realtimeEndInput = document.getElementById('realtime-end');
+    const realtimeStatus = document.getElementById('realtime-status');
+    const realtimeSubtitle = document.getElementById('realtime-modal-subtitle');
+    const realtimeHint = document.getElementById('realtime-hint');
+    const realtimeClearButton = document.getElementById('realtime-clear');
+    const realtimeCancelButton = document.getElementById('realtime-cancel');
     const registrationDisabledMessage = 'La création de compte est désactivée. Contactez votre administrateur pour obtenir un accès.';
     let coursesCache = [];
     let draggedActivity = null;
@@ -538,6 +630,7 @@
     let editingActivity = null;
     let creationWeekIndex = null;
     let currentUser = null;
+    let realTimeContext = null;
 
     function getActivityElements(container) {
       return Array.from(container.querySelectorAll('.activity')).filter(
@@ -1135,7 +1228,7 @@
       const endLabel = formatTimeLabel(activity.actualEnd);
 
       if (!activity.actualStart && !activity.actualEnd) {
-        return 'Réel : à saisir';
+        return '';
       }
 
       if (activity.actualStart && !activity.actualEnd) {
@@ -1146,12 +1239,10 @@
     }
 
     function buildIsoFromTime(activity, timeString) {
-      if (!timeString) return null;
-      const [hours, minutes] = timeString.split(':').map((part) => Number(part));
-      if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
-        return null;
-      }
+      const normalizedTime = normalizeTimeString(timeString, activity?.period);
+      if (!normalizedTime) return null;
 
+      const [hours, minutes] = normalizedTime.split(':').map((part) => Number(part));
       const referenceDate = activity.sessionDate || new Date().toISOString().slice(0, 10);
       const isoString = `${referenceDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
       const parsed = new Date(isoString);
@@ -1189,6 +1280,144 @@
       }
 
       return { actualStart: startIso ?? undefined, actualEnd: endIso ?? undefined };
+    }
+
+    function isoToTimeValue(isoString, period) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      if (Number.isNaN(date.getTime())) return '';
+
+      return normalizeTimeString(
+        `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+        period
+      );
+    }
+
+    function getPeriodRangeText(period) {
+      if (period === 'matin') return '08h00 - 11h45';
+      if (period === 'apres_midi') return '13h00 - 16h45';
+      return '08h00 - 11h45 et 13h00 - 16h45';
+    }
+
+    function getRealTimeContext(activity, slot) {
+      return {
+        activity,
+        period: activity.period || slot?.period || null,
+        sessionDate: activity.sessionDate || slot?.sessionDate || activity.sessionDate || null
+      };
+    }
+
+    function setRealtimeInputsFromActivity(context) {
+      const { activity, period } = context;
+      realtimeStartInput.value = isoToTimeValue(activity.actualStart, period);
+      realtimeEndInput.value = isoToTimeValue(activity.actualEnd, period);
+    }
+
+    function applyRealtimeConstraints(period) {
+      const limits = getPeriodLimits(period);
+      const minValue = minutesToTimeString(limits.minMinutes);
+      const maxValue = minutesToTimeString(limits.maxMinutes);
+
+      realtimeStartInput.min = minValue;
+      realtimeEndInput.min = minValue;
+      realtimeStartInput.max = maxValue;
+      realtimeEndInput.max = maxValue;
+      realtimeHint.textContent = `Les horaires sont automatiquement arrondis aux 5 minutes et limités à ${getPeriodRangeText(period)}.`;
+    }
+
+    function openRealtimeModal(activity, slot) {
+      realTimeContext = getRealTimeContext(activity, slot);
+      realtimeStatus.textContent = '';
+      realtimeSubtitle.textContent = slot?.label || "Renseignez les horaires constatés sur l'activité.";
+
+      applyRealtimeConstraints(realTimeContext.period);
+      setRealtimeInputsFromActivity(realTimeContext);
+
+      realtimeModal.classList.remove('is-hidden');
+      realtimeModal.hidden = false;
+      realtimeStartInput.focus();
+    }
+
+    function closeRealtimeModal() {
+      realTimeContext = null;
+      realtimeStatus.textContent = '';
+      realtimeStartInput.value = '';
+      realtimeEndInput.value = '';
+      realtimeModal.classList.add('is-hidden');
+      realtimeModal.hidden = true;
+    }
+
+    function buildRealtimePayload(startValue, endValue) {
+      if (!realTimeContext) return null;
+
+      const activityContext = {
+        ...realTimeContext.activity,
+        period: realTimeContext.period,
+        sessionDate: realTimeContext.sessionDate || realTimeContext.activity.sessionDate
+      };
+
+      return {
+        actualStart: startValue ? buildIsoFromTime(activityContext, startValue) : null,
+        actualEnd: endValue ? buildIsoFromTime(activityContext, endValue) : null
+      };
+    }
+
+    async function persistRealtimeTiming(payload) {
+      if (!realTimeContext) return;
+      realtimeStatus.textContent = 'Enregistrement...';
+
+      const result = await updateActivityTiming(realTimeContext.activity.id, payload);
+
+      if (!result) {
+        realtimeStatus.textContent = activityStatus.textContent || 'Impossible de mettre à jour les heures réelles.';
+        return;
+      }
+
+      realTimeContext.activity.actualStart = result.actualStart;
+      realTimeContext.activity.actualEnd = result.actualEnd;
+      realtimeStatus.textContent = '';
+      closeRealtimeModal();
+      renderSchedule();
+    }
+
+    async function handleRealtimeSubmit(event) {
+      event.preventDefault();
+      if (!realTimeContext) return;
+
+      const period = realTimeContext.period;
+      const normalizedStart = normalizeTimeString(realtimeStartInput.value, period);
+      const normalizedEnd = normalizeTimeString(realtimeEndInput.value, period);
+
+      realtimeStartInput.value = normalizedStart;
+      realtimeEndInput.value = normalizedEnd;
+
+      if (!normalizedStart && !normalizedEnd) {
+        realtimeStatus.textContent = 'Saisissez au moins un horaire ou utilisez le bouton Effacer pour vider les champs.';
+        return;
+      }
+
+      if (normalizedStart && normalizedEnd) {
+        const startMinutes = timeStringToMinutes(normalizedStart);
+        const endMinutes = timeStringToMinutes(normalizedEnd);
+
+        if (endMinutes !== null && startMinutes !== null && endMinutes < startMinutes) {
+          realtimeStatus.textContent = "L'heure de fin doit être après l'heure de début.";
+          return;
+        }
+      }
+
+      const payload = buildRealtimePayload(normalizedStart, normalizedEnd);
+      if (!payload) return;
+
+      await persistRealtimeTiming(payload);
+    }
+
+    async function handleRealtimeClear() {
+      if (!realTimeContext) return;
+      realtimeStartInput.value = '';
+      realtimeEndInput.value = '';
+
+      await persistRealtimeTiming({ actualStart: null, actualEnd: null });
     }
 
     function findNextTrackableActivity() {
@@ -1258,31 +1487,15 @@
       const realTimeButton = document.createElement('button');
       realTimeButton.type = 'button';
       realTimeButton.className = 'activity__realtime';
-      realTimeButton.textContent = getRealTimeLabel(activity);
+      const realTimeLabel = getRealTimeLabel(activity);
+      realTimeButton.textContent = realTimeLabel;
+      realTimeButton.classList.toggle('activity__realtime--empty', realTimeLabel === '');
+      realTimeButton.setAttribute('aria-label', realTimeLabel || 'Ajouter des heures réelles');
       realTimeButton.title = 'Modifier les heures réelles';
       realTimeButton.addEventListener('click', (event) => {
         event.stopPropagation();
-        const currentValue = `${formatTimeLabel(activity.actualStart)}${activity.actualEnd ? ` - ${formatTimeLabel(activity.actualEnd)}` : ''}`.replace(
-          /^--:--\s?-?\s?/, ''
-        );
-        const userInput = window.prompt('Heures réelles (HH:MM-HH:MM). Laissez vide pour effacer.', currentValue.trim());
-        if (userInput === null) return;
-
-        try {
-          const parsed = parseManualTimeInput(userInput, activity);
-          const payload = {};
-          if (parsed.actualStart !== undefined) payload.actualStart = parsed.actualStart;
-          if (parsed.actualEnd !== undefined) payload.actualEnd = parsed.actualEnd;
-
-          updateActivityTiming(activity.id, payload).then((result) => {
-            if (!result) return;
-            activity.actualStart = result.actualStart;
-            activity.actualEnd = result.actualEnd;
-            renderSchedule();
-          });
-        } catch (error) {
-          activityStatus.textContent = `⚠️ ${error.message}`;
-        }
+        const slot = schedule[weekIndex]?.slots?.[slotIndex];
+        openRealtimeModal(activity, slot);
       });
 
       metaColumn.appendChild(realTimeButton);
@@ -1860,6 +2073,11 @@
       halfDayHolidayToggle.addEventListener('click', () => {
         setHalfDayHolidayToggleState(!getHalfDayHolidayToggleState());
       });
+      closeRealtimeModalBtn.addEventListener('click', closeRealtimeModal);
+      realtimeModalBackdrop.addEventListener('click', closeRealtimeModal);
+      realtimeCancelButton.addEventListener('click', closeRealtimeModal);
+      realtimeForm.addEventListener('submit', handleRealtimeSubmit);
+      realtimeClearButton.addEventListener('click', handleRealtimeClear);
       halfDayForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const isUpdated = updateHalfDayHolidayState(getHalfDayHolidayToggleState());
