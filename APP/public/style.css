@@ -305,23 +305,37 @@ h1 {
 }
 
 .course-toolbar {
-  margin-top: 12px;
+  margin-top: 0;
   margin-bottom: 8px;
   padding: 16px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(120deg, rgba(124, 58, 237, 0.08), rgba(34, 211, 238, 0.08));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
 }
 
 .course-toolbar__intro {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.course-selector {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.course-selector .form-field {
+  flex: 1;
+  min-width: 220px;
 }
 
 .course-details {
