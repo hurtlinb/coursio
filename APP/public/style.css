@@ -200,6 +200,10 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 .planner__header {
