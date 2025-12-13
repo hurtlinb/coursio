@@ -505,8 +505,19 @@
     }
 
     function formatHalfDayLabel(halfDay) {
-      const periodLabel = halfDay.period === 'apres_midi' ? 'Après-midi' : 'Matin';
-      return periodLabel;
+      const periodLabel = halfDay.period === 'apres_midi' ? 'après-midi' : 'matin';
+
+      const sessionDate = new Date(halfDay.sessionDate);
+      if (Number.isNaN(sessionDate.getTime())) return periodLabel;
+
+      const dateLabel = sessionDate.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      return `${dateLabel} - ${periodLabel}`;
     }
 
     function buildSchedule(halfDays = [], holidays = {}) {
