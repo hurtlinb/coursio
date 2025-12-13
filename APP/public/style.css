@@ -24,9 +24,9 @@ body {
   min-height: 100vh;
 }
 
-.print-view {
-  display: none;
-}
+  .print-view {
+    display: none;
+  }
 
 .sr-only {
   position: absolute;
@@ -1223,6 +1223,53 @@ h1 {
 
   .print-view {
     display: block;
+  }
+
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .print-course-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 2px 0 4px;
+  }
+
+  .print-course-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  .print-header__details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    min-width: 260px;
+  }
+
+  .print-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+  }
+
+  .print-detail__label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+  }
+
+  .print-detail__value {
+    font-weight: 700;
+    color: #0f172a;
   }
 
   .print-table {

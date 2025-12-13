@@ -149,6 +149,31 @@
   </main>
 
   <div class="print-view" id="print-view" aria-hidden="true">
+    <div class="print-header">
+      <div>
+        <p class="label">Cours</p>
+        <p class="print-course-title" id="print-course-title">Sélectionnez un cours</p>
+        <p class="print-course-meta" id="print-course-meta">Les informations du cours s’afficheront ici lors de l’impression.</p>
+      </div>
+      <div class="print-header__details">
+        <div class="print-detail">
+          <span class="print-detail__label">Enseignant</span>
+          <span class="print-detail__value" id="print-course-teacher">—</span>
+        </div>
+        <div class="print-detail">
+          <span class="print-detail__label">Classe</span>
+          <span class="print-detail__value" id="print-course-class">—</span>
+        </div>
+        <div class="print-detail">
+          <span class="print-detail__label">Salle</span>
+          <span class="print-detail__value" id="print-course-room">—</span>
+        </div>
+        <div class="print-detail">
+          <span class="print-detail__label">Période</span>
+          <span class="print-detail__value" id="print-course-dates">—</span>
+        </div>
+      </div>
+    </div>
     <table class="print-table" aria-label="Récapitulatif des activités">
       <thead>
         <tr>
@@ -683,6 +708,12 @@
     const realtimeHint = document.getElementById('realtime-hint');
     const realtimeClearButton = document.getElementById('realtime-clear');
     const realtimeCancelButton = document.getElementById('realtime-cancel');
+    const printCourseTitle = document.getElementById('print-course-title');
+    const printCourseMeta = document.getElementById('print-course-meta');
+    const printCourseTeacher = document.getElementById('print-course-teacher');
+    const printCourseClass = document.getElementById('print-course-class');
+    const printCourseRoom = document.getElementById('print-course-room');
+    const printCourseDates = document.getElementById('print-course-dates');
     const registrationDisabledMessage = 'La création de compte est désactivée. Contactez votre administrateur pour obtenir un accès.';
     let coursesCache = [];
     let draggedActivity = null;
@@ -830,14 +861,18 @@
       return `Du ${startLabel} au ${endLabel}`;
     }
 
+    function getCourseDateRangeLabel(course) {
+      if (!course) return 'Dates à planifier';
+
+      return formatDateRangeFromHalfDays(courseHalfDays) || (course.startDate ? 'Date de début à préciser' : 'Dates à planifier');
+    }
+
     function buildCourseDetails(course) {
       if (!course) {
         return [];
       }
 
-      const dateRangeLabel =
-        formatDateRangeFromHalfDays(courseHalfDays) ||
-        (course.startDate ? 'Date de début à préciser' : 'Dates à planifier');
+      const dateRangeLabel = getCourseDateRangeLabel(course);
 
       return [
         { label: 'Classe', value: course.className || 'Non précisée' },
@@ -877,6 +912,42 @@
       });
     }
 
+    function updatePrintHeader(course = getCurrentCourse()) {
+      if (
+        !printCourseTitle ||
+        !printCourseMeta ||
+        !printCourseTeacher ||
+        !printCourseClass ||
+        !printCourseRoom ||
+        !printCourseDates
+      ) {
+        return;
+      }
+
+      if (!course) {
+        printCourseTitle.textContent = 'Sélectionnez un cours';
+        printCourseMeta.textContent = 'Les informations du cours s’afficheront ici lors de l’impression.';
+        printCourseTeacher.textContent = '—';
+        printCourseClass.textContent = '—';
+        printCourseRoom.textContent = '—';
+        printCourseDates.textContent = '—';
+        return;
+      }
+
+      const courseTitleParts = [course.moduleNumber, course.moduleName].filter(Boolean);
+      const courseTitleLabel = courseTitleParts.length > 0 ? courseTitleParts.join(' · ') : 'Cours sans titre';
+      const teacherLabel = course.teacher?.trim() || currentUser?.displayName || 'Non renseigné';
+      const classLabel = course.className?.trim() || 'Non précisée';
+      const roomLabel = course.room?.trim() || 'Non précisée';
+
+      printCourseTitle.textContent = courseTitleLabel;
+      printCourseMeta.textContent = `${classLabel} — ${roomLabel}`;
+      printCourseTeacher.textContent = teacherLabel;
+      printCourseClass.textContent = classLabel;
+      printCourseRoom.textContent = roomLabel;
+      printCourseDates.textContent = getCourseDateRangeLabel(course);
+    }
+
     function updateCourseHeader(course = getCurrentCourse()) {
       if (!courseTitleButton || !courseDetails) return;
 
@@ -887,6 +958,7 @@
         if (printPageButton) {
           printPageButton.setAttribute('disabled', '');
         }
+        updatePrintHeader(null);
         return;
       }
 
@@ -896,6 +968,7 @@
         printPageButton.removeAttribute('disabled');
       }
       renderCourseDetails(course);
+      updatePrintHeader(course);
     }
 
     function selectFormat(format) {
@@ -2044,6 +2117,8 @@
 
     function renderPrintView() {
       if (!printTableBody) return;
+
+      updatePrintHeader();
 
       printTableBody.innerHTML = '';
 
