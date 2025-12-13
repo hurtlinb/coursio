@@ -506,8 +506,7 @@
 
     function formatHalfDayLabel(halfDay) {
       const periodLabel = halfDay.period === 'apres_midi' ? 'Après-midi' : 'Matin';
-      const formattedDate = dateFormatter.format(new Date(halfDay.sessionDate));
-      return `${formattedDate} • ${periodLabel}`;
+      return periodLabel;
     }
 
     function buildSchedule(halfDays = [], holidays = {}) {
