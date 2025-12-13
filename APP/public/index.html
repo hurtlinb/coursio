@@ -152,7 +152,6 @@
     <table class="print-table" aria-label="Récapitulatif des activités">
       <thead>
         <tr>
-          <th scope="col">Date</th>
           <th scope="col">Temps prévu</th>
           <th scope="col">Temps réel</th>
           <th scope="col">Type d'activité</th>
@@ -162,7 +161,7 @@
       </thead>
       <tbody id="print-table-body">
         <tr class="print-table__row print-table__row--empty">
-          <td colspan="6">Aucune activité planifiée</td>
+          <td colspan="5">Aucune activité planifiée</td>
         </tr>
       </tbody>
     </table>
@@ -2048,44 +2047,45 @@
 
       printTableBody.innerHTML = '';
 
-      const rows = [];
+      const halfDayRows = [];
 
       schedule.forEach((week, weekIndex) => {
         week.slots.forEach((slot, slotIndex) => {
           if (slot.isHoliday || slot.activities.length === 0) return;
 
           const dateValue = slot.sessionDate ? new Date(slot.sessionDate) : null;
-          const dateLabel = slot.sessionDate ? dateFormatter.format(dateValue) : '';
 
-          slot.activities.forEach((activity, activityIndex) => {
-            rows.push({
-              dateValue,
-              dateLabel,
-              weekIndex,
-              slotIndex,
-              activityIndex,
-              planned: activity.duration ? `${activity.duration} min` : '',
-              real: getRealTimeLabel(activity),
-              type: supportedFormats[activity.type] || activity.type,
-              title: activity.name,
-              resources: formatMaterialsInline(activity.materials)
-            });
+          const activities = slot.activities.map((activity, activityIndex) => ({
+            activityIndex,
+            planned: activity.duration ? `${activity.duration} min` : '',
+            real: getRealTimeLabel(activity),
+            type: supportedFormats[activity.type] || activity.type,
+            title: activity.name,
+            resources: formatMaterialsInline(activity.materials)
+          }));
+
+          halfDayRows.push({
+            dateValue,
+            weekIndex,
+            slotIndex,
+            label: slot.label,
+            activities
           });
         });
       });
 
-      if (rows.length === 0) {
+      if (halfDayRows.length === 0) {
         const emptyRow = document.createElement('tr');
         emptyRow.className = 'print-table__row print-table__row--empty';
         const emptyCell = document.createElement('td');
-        emptyCell.colSpan = 6;
+        emptyCell.colSpan = 5;
         emptyCell.textContent = 'Aucune activité planifiée';
         emptyRow.appendChild(emptyCell);
         printTableBody.appendChild(emptyRow);
         return;
       }
 
-      rows.sort((a, b) => {
+      halfDayRows.sort((a, b) => {
         if (a.dateValue && b.dateValue) {
           return a.dateValue.getTime() - b.dateValue.getTime();
         }
@@ -2093,41 +2093,46 @@
         if (!a.dateValue && b.dateValue) return 1;
 
         if (a.weekIndex !== b.weekIndex) return a.weekIndex - b.weekIndex;
-        if (a.slotIndex !== b.slotIndex) return a.slotIndex - b.slotIndex;
-
-        return a.activityIndex - b.activityIndex;
+        return a.slotIndex - b.slotIndex;
       });
 
-      rows.forEach((row) => {
-        const tr = document.createElement('tr');
-        tr.className = 'print-table__row';
+      halfDayRows.forEach((row) => {
+        const headingRow = document.createElement('tr');
+        headingRow.className = 'print-table__row print-table__subheading';
+        const headingCell = document.createElement('th');
+        headingCell.colSpan = 5;
+        headingCell.scope = 'colgroup';
+        headingCell.textContent = row.label || 'Créneau';
+        headingRow.appendChild(headingCell);
+        printTableBody.appendChild(headingRow);
 
-        const dateCell = document.createElement('td');
-        dateCell.textContent = row.dateLabel || '';
+        row.activities.forEach((activity) => {
+          const tr = document.createElement('tr');
+          tr.className = 'print-table__row';
 
-        const plannedCell = document.createElement('td');
-        plannedCell.textContent = row.planned || '';
+          const plannedCell = document.createElement('td');
+          plannedCell.textContent = activity.planned || '';
 
-        const realCell = document.createElement('td');
-        realCell.textContent = row.real || '';
+          const realCell = document.createElement('td');
+          realCell.textContent = activity.real || '';
 
-        const typeCell = document.createElement('td');
-        typeCell.textContent = row.type || '';
+          const typeCell = document.createElement('td');
+          typeCell.textContent = activity.type || '';
 
-        const titleCell = document.createElement('td');
-        titleCell.textContent = row.title || '';
+          const titleCell = document.createElement('td');
+          titleCell.textContent = activity.title || '';
 
-        const resourcesCell = document.createElement('td');
-        resourcesCell.textContent = row.resources || '';
+          const resourcesCell = document.createElement('td');
+          resourcesCell.textContent = activity.resources || '';
 
-        tr.appendChild(dateCell);
-        tr.appendChild(plannedCell);
-        tr.appendChild(realCell);
-        tr.appendChild(typeCell);
-        tr.appendChild(titleCell);
-        tr.appendChild(resourcesCell);
+          tr.appendChild(plannedCell);
+          tr.appendChild(realCell);
+          tr.appendChild(typeCell);
+          tr.appendChild(titleCell);
+          tr.appendChild(resourcesCell);
 
-        printTableBody.appendChild(tr);
+          printTableBody.appendChild(tr);
+        });
       });
     }
 
