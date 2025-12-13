@@ -146,27 +146,27 @@
         </div>
       </section>
 
-    <div class="print-view" id="print-view" aria-hidden="true">
-      <table class="print-table" aria-label="Récapitulatif des activités">
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Temps prévu</th>
-            <th scope="col">Temps réel</th>
-            <th scope="col">Type d'activité</th>
-            <th scope="col">Titre</th>
-            <th scope="col">Ressources</th>
-          </tr>
-        </thead>
-        <tbody id="print-table-body">
-          <tr class="print-table__row print-table__row--empty">
-            <td colspan="6">Aucune activité planifiée</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
   </main>
+
+  <div class="print-view" id="print-view" aria-hidden="true">
+    <table class="print-table" aria-label="Récapitulatif des activités">
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Temps prévu</th>
+          <th scope="col">Temps réel</th>
+          <th scope="col">Type d'activité</th>
+          <th scope="col">Titre</th>
+          <th scope="col">Ressources</th>
+        </tr>
+      </thead>
+      <tbody id="print-table-body">
+        <tr class="print-table__row print-table__row--empty">
+          <td colspan="6">Aucune activité planifiée</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
   <div class="activity-modal is-hidden" id="activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title" hidden>
     <div class="activity-modal__backdrop" data-close-activity-modal></div>
