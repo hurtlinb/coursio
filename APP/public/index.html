@@ -1581,36 +1581,9 @@
       activityEl.dataset.slot = slotIndex;
       activityEl.dataset.index = activityIndex;
       activityEl.dataset.id = activity.id;
-      activityEl.dataset.slotLabel = slot?.label || '';
 
       const grid = document.createElement('div');
       grid.className = 'activity__grid';
-
-      const titleCell = document.createElement('div');
-      titleCell.className = 'activity__cell activity__cell--title';
-
-      const title = document.createElement('button');
-      title.type = 'button';
-      title.className = 'activity__title activity__title-button';
-      title.textContent = activity.name;
-      title.title = `Modifier l'activité ${activity.name}`;
-      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
-      title.addEventListener('click', (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
-      });
-
-      titleCell.appendChild(title);
-
-      const slotCell = document.createElement('div');
-      slotCell.className = 'activity__cell activity__cell--slot';
-
-      const slotLabel = document.createElement('div');
-      slotLabel.className = 'activity__slot-label';
-      slotLabel.textContent = slot?.label || '';
-
-      slotCell.appendChild(slotLabel);
 
       const plannedCell = document.createElement('div');
       plannedCell.className = 'activity__cell activity__cell--planned';
@@ -1657,6 +1630,23 @@
       type.appendChild(typeName);
 
       typeCell.appendChild(type);
+
+      const titleCell = document.createElement('div');
+      titleCell.className = 'activity__cell activity__cell--title';
+
+      const title = document.createElement('button');
+      title.type = 'button';
+      title.className = 'activity__title activity__title-button';
+      title.textContent = activity.name;
+      title.title = `Modifier l'activité ${activity.name}`;
+      title.setAttribute('aria-label', `Modifier l'activité ${activity.name}`);
+      title.addEventListener('click', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
+      });
+
+      titleCell.appendChild(title);
 
       const realTimeCell = document.createElement('div');
       realTimeCell.className = 'activity__cell activity__cell--realtime';
@@ -1766,10 +1756,9 @@
       materials.appendChild(materialsList);
       materialsCell.appendChild(materials);
 
-      grid.appendChild(titleCell);
-      grid.appendChild(slotCell);
       grid.appendChild(plannedCell);
       grid.appendChild(typeCell);
+      grid.appendChild(titleCell);
       grid.appendChild(realTimeCell);
       grid.appendChild(detailsCell);
       grid.appendChild(materialsCell);

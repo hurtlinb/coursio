@@ -863,16 +863,14 @@ h1 {
   --activity-duration-width: 132px;
   --activity-duration-icon-size: 16px;
   --activity-duration-gap: 6px;
-  --activity-title-indent: 32px;
 }
 
 .activity__grid {
   display: grid;
-  grid-template-columns: var(--activity-duration-width) 1.2fr 1fr 1fr;
+  grid-template-columns: var(--activity-duration-width) 1fr 1.2fr;
   grid-template-areas:
-    'title title title realtime'
-    'slot planned type materials'
-    'details details details materials';
+    'planned type title'
+    'realtime details materials';
   column-gap: 16px;
   row-gap: 10px;
   align-items: start;
@@ -880,10 +878,6 @@ h1 {
 
 .activity__cell--title {
   grid-area: title;
-}
-
-.activity__cell--slot {
-  grid-area: slot;
 }
 
 .activity__cell--type {
@@ -907,7 +901,6 @@ h1 {
 
 .activity__cell--details {
   grid-area: details;
-  padding-left: var(--activity-title-indent);
 }
 
 .activity__cell--materials {
@@ -931,12 +924,6 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-}
-
-.activity__slot-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
 }
 
 .activity__realtime {
