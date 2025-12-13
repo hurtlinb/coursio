@@ -876,6 +876,7 @@ h1 {
   column-gap: 16px;
   row-gap: 10px;
   align-items: start;
+  grid-template-rows: minmax(0, auto) minmax(0, auto);
 }
 
 .activity__cell--title {
@@ -903,6 +904,8 @@ h1 {
 
 .activity__cell--materials {
   grid-area: materials;
+  align-self: start;
+  grid-row: 1 / span 2;
 }
 
 .activity__cell--realtime .activity__realtime-actions {
