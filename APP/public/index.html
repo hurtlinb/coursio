@@ -1605,34 +1605,20 @@
 
       plannedCell.appendChild(duration);
 
-      const typeCell = document.createElement('div');
-      typeCell.className = 'activity__cell activity__cell--type';
+      const titleCell = document.createElement('div');
+      titleCell.className = 'activity__cell activity__cell--title';
 
-      const type = document.createElement('div');
-      type.className = 'activity__type';
-      type.title = supportedFormats[activity.type] || activity.type;
+      const heading = document.createElement('div');
+      heading.className = 'activity__heading';
 
       const typeIcon = document.createElement('span');
       typeIcon.className = 'format-icon';
       typeIcon.innerHTML = getFormatIconMarkup(activity.type);
       typeIcon.setAttribute('aria-hidden', 'true');
 
-      const typeLabel = document.createElement('span');
-      typeLabel.className = 'activity__format-label';
-      typeLabel.textContent = supportedFormats[activity.type] || activity.type;
-
       const typeName = document.createElement('span');
       typeName.className = 'sr-only';
       typeName.textContent = supportedFormats[activity.type] || activity.type;
-
-      type.appendChild(typeIcon);
-      type.appendChild(typeLabel);
-      type.appendChild(typeName);
-
-      typeCell.appendChild(type);
-
-      const titleCell = document.createElement('div');
-      titleCell.className = 'activity__cell activity__cell--title';
 
       const title = document.createElement('button');
       title.type = 'button';
@@ -1646,7 +1632,11 @@
         openActivityEditModal(activity, weekIndex, slotIndex, activityIndex);
       });
 
-      titleCell.appendChild(title);
+      heading.appendChild(typeIcon);
+      heading.appendChild(title);
+      heading.appendChild(typeName);
+
+      titleCell.appendChild(heading);
 
       const realTimeCell = document.createElement('div');
       realTimeCell.className = 'activity__cell activity__cell--realtime';
@@ -1757,7 +1747,6 @@
       materialsCell.appendChild(materials);
 
       grid.appendChild(plannedCell);
-      grid.appendChild(typeCell);
       grid.appendChild(titleCell);
       grid.appendChild(realTimeCell);
       grid.appendChild(detailsCell);

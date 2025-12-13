@@ -867,9 +867,9 @@ h1 {
 
 .activity__grid {
   display: grid;
-  grid-template-columns: var(--activity-duration-width) 1fr 1.2fr;
+  grid-template-columns: var(--activity-duration-width) 1.4fr 1.2fr;
   grid-template-areas:
-    'planned type title'
+    'planned title materials'
     'realtime details materials';
   column-gap: 16px;
   row-gap: 10px;
@@ -878,10 +878,6 @@ h1 {
 
 .activity__cell--title {
   grid-area: title;
-}
-
-.activity__cell--type {
-  grid-area: type;
 }
 
 .activity__cell {
@@ -1000,25 +996,11 @@ h1 {
   text-decoration: underline;
 }
 
-.activity__type {
+.activity__heading {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0;
-  background: none;
-  border-radius: 0;
-  color: var(--text);
-  width: fit-content;
-}
-
-.activity__format-label {
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.activity__type .activity__title-button {
-  padding: 0;
-  color: inherit;
+  gap: 10px;
+  width: 100%;
 }
 
 .activity__details {
@@ -1267,16 +1249,10 @@ h1 {
     grid-template-columns: 1fr;
     grid-template-areas:
       'title'
-      'slot'
       'planned'
-      'type'
       'realtime'
       'details'
       'materials';
-  }
-
-  .activity__cell--type {
-    grid-column: auto;
   }
 
   .activity__realtime-actions {
