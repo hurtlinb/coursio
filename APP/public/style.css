@@ -845,6 +845,8 @@ h1 {
   gap: 6px;
   cursor: grab;
   transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+  --activity-icon-size: 22px;
+  --activity-icon-gap: 10px;
 }
 
 .activity.is-dragging {
@@ -999,12 +1001,18 @@ h1 {
 .activity__heading {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--activity-icon-gap);
   width: 100%;
+}
+
+.activity__heading .format-icon {
+  width: var(--activity-icon-size);
+  height: var(--activity-icon-size);
 }
 
 .activity__details {
   color: var(--muted);
+  margin-left: calc(var(--activity-icon-size) + var(--activity-icon-gap));
 }
 
 .activity__materials {
